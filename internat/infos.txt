@@ -1,0 +1,3 @@
+Title:          Интернат
+Author:         Сергей Михно
+Email:          sergey.mikhno@gmail.com
