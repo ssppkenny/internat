@@ -42,6 +42,23 @@ def fix(tex: str) -> str:
     # T2A has no definitions for combining accents; drop them
     tex = re.sub(r"[\u0300-\u036f]", "", tex)
 
+    gin_keys = (
+        r"\setkeys{Gin}{width=\linewidth,height=0.8\textheight,keepaspectratio}"
+    )
+    if gin_keys not in tex:
+        if r"\usepackage{graphicx}" in tex:
+            tex = tex.replace(
+                r"\usepackage{graphicx}",
+                "\\usepackage{graphicx}\n" + gin_keys,
+                1,
+            )
+        else:
+            tex = tex.replace(
+                r"\begin{document}",
+                "\\usepackage{graphicx}\n" + gin_keys + "\n\\begin{document}",
+                1,
+            )
+
     return tex
 
 
