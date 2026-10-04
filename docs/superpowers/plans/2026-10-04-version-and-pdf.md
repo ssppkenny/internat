@@ -16,7 +16,7 @@
 - Version appears on the PDF title page (`-V date="Версия $(cat VERSION)"`) and on the site landing page only — NOT in the EPUB.
 - PDF is built from `build/book-raw.md` (raw bodies: `\begin{verse}` environments intact, `Photos/<rel>` refs raw); `build/book.md` stays blockquote/plain-markdown for EPUB — no behavior change there.
 - Exact CI PDF commands (run from repo root):
-  `pandoc build/book-raw.md -s -t latex --toc --top-level-division=chapter -V documentclass=memoir -V fontsize=14pt -V papersize=a4paper --metadata title="Интернат" --metadata author="Сергей Михно" -V date="Версия $(cat VERSION)" -o build/book.tex`, then `python3 fix-manuskript-latex.py build/book.tex`, then `pdflatex -interaction=nonstopmode -output-directory=build build/book.tex` twice, then `cp build/book.pdf site/book/internat.pdf`.
+  `pandoc build/book-raw.md -s -t latex --toc --top-level-division=chapter -V documentclass=memoir -V fontsize=14pt -V papersize=a4 --metadata title="Интернат" --metadata author="Сергей Михно" -V date="Версия $(cat VERSION)" -o build/book.tex`, then `python3 fix-manuskript-latex.py build/book.tex`, then `pdflatex -interaction=nonstopmode -output-directory=build build/book.tex` twice, then `cp build/book.pdf site/book/internat.pdf`.
 - Never modify `internat/outline/` or `Photos/`.
 - Converter stays stdlib-only (no new imports).
 - Missing `VERSION` file → `ValueError` with `missing version file`, exit 1 via existing `main()` handling.
@@ -220,11 +220,11 @@ In `.github/workflows/pages.yml`, replace the `Copy PDF` step (currently lines 4
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             texlive-latex-base texlive-latex-recommended texlive-latex-extra \
-            texlive-fonts-recommended texlive-lang-cyrillic
+            texlive-fonts-recommended texlive-lang-cyrillic lmodern
       - name: Build PDF
         run: |
           pandoc build/book-raw.md -s -t latex --toc --top-level-division=chapter \
-            -V documentclass=memoir -V fontsize=14pt -V papersize=a4paper \
+            -V documentclass=memoir -V fontsize=14pt -V papersize=a4 \
             --metadata title="Интернат" \
             --metadata author="Сергей Михно" \
             -V date="Версия $(cat VERSION)" \
@@ -265,7 +265,7 @@ From the repo root (local pandoc 3.7.0.2; commands identical to CI):
 ```bash
 python3 tools/build_site.py
 pandoc build/book-raw.md -s -t latex --toc --top-level-division=chapter \
-  -V documentclass=memoir -V fontsize=14pt -V papersize=a4paper \
+  -V documentclass=memoir -V fontsize=14pt -V papersize=a4 \
   --metadata title="Интернат" --metadata author="Сергей Михно" \
   -V date="Версия $(cat VERSION)" -o build/book.tex
 python3 fix-manuskript-latex.py build/book.tex

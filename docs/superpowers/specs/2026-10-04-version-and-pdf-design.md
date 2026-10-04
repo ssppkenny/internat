@@ -71,11 +71,11 @@ matches the chapters and contains the photos.
       sudo apt-get update
       sudo apt-get install -y --no-install-recommends \
         texlive-latex-base texlive-latex-recommended texlive-latex-extra \
-        texlive-fonts-recommended texlive-lang-cyrillic
+        texlive-fonts-recommended texlive-lang-cyrillic lmodern
   - name: Build PDF
     run: |
       pandoc build/book-raw.md -s -t latex --toc --top-level-division=chapter \
-        -V documentclass=memoir -V fontsize=14pt -V papersize=a4paper \
+        -V documentclass=memoir -V fontsize=14pt -V papersize=a4 \
         --metadata title="Интернат" --metadata author="Сергей Михно" \
         -V date="Версия $(cat VERSION)" -o build/book.tex
       python3 fix-manuskript-latex.py build/book.tex
