@@ -1,0 +1,9 @@
+[book]
+title = "Интернат"
+authors = ["Сергей Михно"]
+language = "ru"
+src = "src"
+
+[output.html]
+site-url = "https://ssppkenny.github.io/internat"
+additional-css = ["theme/custom.css"]
