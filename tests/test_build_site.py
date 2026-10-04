@@ -148,7 +148,7 @@ def test_verse_block_converted_to_blockquote(outline: Path, tmp_path: Path) -> N
         "\tгорящий,\\\\\n"
         "\t\tкак расплавленное лето,\\\\\n"
         "разворачивался\\\\\n"
-        "Нетте».\n"
+        "Нетте».\\\\\n"
         "\\end{verse}"
     )
     write_chapter(outline / "0-Часть 1" / "0-Поступление.md", "Поступление", body)

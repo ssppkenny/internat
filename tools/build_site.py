@@ -74,9 +74,12 @@ def rewrite_image_refs(body: str) -> str:
 
 def convert_verse_blocks(body: str) -> str:
     def render(match: re.Match[str]) -> str:
+        source_lines = match.group(1).splitlines()
         lines = []
-        for line in match.group(1).splitlines():
-            if line.endswith("\\\\"):
+        for position, line in enumerate(source_lines):
+            if position == len(source_lines) - 1:
+                line = line.rstrip("\\")
+            elif line.endswith("\\\\"):
                 line = line[:-2] + "\\"
             indent = re.match(r"[ \t]*", line).group(0)
             spaces = "".join(
