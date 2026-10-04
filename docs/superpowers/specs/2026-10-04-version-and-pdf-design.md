@@ -71,7 +71,7 @@ matches the chapters and contains the photos.
       sudo apt-get update
       sudo apt-get install -y --no-install-recommends \
         texlive-latex-base texlive-latex-recommended texlive-latex-extra \
-        texlive-fonts-recommended texlive-lang-cyrillic lmodern
+        texlive-fonts-recommended texlive-lang-cyrillic lmodern cm-super
   - name: Build PDF
     run: |
       pandoc build/book-raw.md -s -t latex --toc --top-level-division=chapter \
