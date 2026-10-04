@@ -161,11 +161,11 @@ def test_verse_block_converted_to_blockquote(outline: Path, tmp_path: Path) -> N
         "> разворачивался\\\n"
         "> Нетте»."
     )
-    assert expected_blockquote in site
+    assert expected_blockquote + "\n" in site
     assert "\\begin{verse}" not in site
     assert "\\end{verse}" not in site
     book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
-    assert expected_blockquote in book
+    assert expected_blockquote + "\n" in book
     assert "\\begin{verse}" not in book
 
 
