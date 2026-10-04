@@ -2,6 +2,6 @@ title:          Часть 2
 ID:             43
 type:           folder
 compile:        2
-charCount:      31860
+charCount:      31605
 
 
