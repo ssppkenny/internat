@@ -1,0 +1,60 @@
+name: Book site
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+env:
+  MDBOOK_VERSION: v0.5.4
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install mdBook
+        run: |
+          curl -fsSL -o mdbook.tar.gz \
+            "https://github.com/rust-lang/mdBook/releases/download/${MDBOOK_VERSION}/mdbook-${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          tar -xzf mdbook.tar.gz
+          sudo install -m 0755 mdbook /usr/local/bin/mdbook
+          mdbook --version
+      - name: Generate site sources
+        run: python3 tools/build_site.py
+      - name: Build site
+        run: mdbook build site
+      - name: Build EPUB
+        run: |
+          pandoc build/book.md -o site/book/internat.epub --toc \
+            --metadata title="Интернат" \
+            --metadata author="Сергей Михно" \
+            --metadata lang=ru
+      - name: Copy PDF
+        run: cp book.pdf site/book/internat.pdf
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/book
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
