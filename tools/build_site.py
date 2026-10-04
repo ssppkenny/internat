@@ -12,6 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTLINE_DIR = REPO_ROOT / "internat" / "outline"
 SITE_SRC = REPO_ROOT / "site" / "src"
 BUILD_DIR = REPO_ROOT / "build"
+PHOTOS_DIR = REPO_ROOT / "Photos"
 
 TRANSLIT = {
     "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
@@ -20,6 +21,8 @@ TRANSLIT = {
     "ф": "f", "х": "kh", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "shch",
     "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya", "№": "",
 }
+
+IMG_RE = re.compile(r"\]\((?:\./)?Photos/([^)\s]+)\)")
 
 
 def leading_int(name: str) -> int | None:
@@ -54,6 +57,17 @@ def slugify(title: str) -> str:
     return slug or "chapter"
 
 
+def validate_images(body: str, chapter_path: Path, photos_dir: Path) -> None:
+    for match in IMG_RE.finditer(body):
+        rel = match.group(1)
+        if not (photos_dir / rel).is_file():
+            raise ValueError(f"{chapter_path}: missing image Photos/{rel}")
+
+
+def rewrite_image_refs(body: str) -> str:
+    return IMG_RE.sub(r"](../Photos/\1)", body)
+
+
 def find_parts(outline_dir: Path) -> list[tuple[int, Path]]:
     parts = []
     for child in outline_dir.iterdir():
@@ -76,6 +90,7 @@ def build(
     outline_dir: Path = OUTLINE_DIR,
     site_src: Path = SITE_SRC,
     build_dir: Path = BUILD_DIR,
+    photos_dir: Path = PHOTOS_DIR,
 ) -> None:
     if not outline_dir.is_dir():
         raise ValueError(f"{outline_dir}: not a directory")
@@ -84,6 +99,8 @@ def build(
         shutil.rmtree(site_src)
     site_src.mkdir(parents=True)
     build_dir.mkdir(parents=True, exist_ok=True)
+    if photos_dir.is_dir():
+        shutil.copytree(photos_dir, site_src / "Photos")
 
     summary_lines = ["# Summary", "", "[Интернат](README.md)", ""]
     book_lines: list[str] = []
@@ -105,6 +122,8 @@ def build(
             if not body:
                 raise ValueError(f"{chapter_path}: empty chapter body")
 
+            validate_images(body, chapter_path, photos_dir)
+
             slug = slugify(chapter_title)
             candidate = slug
             suffix = 2
@@ -114,7 +133,7 @@ def build(
             used_slugs.add(candidate)
 
             (site_src / part_slug / f"{candidate}.md").write_text(
-                f"# {chapter_title}\n\n{body}\n", encoding="utf-8"
+                f"# {chapter_title}\n\n{rewrite_image_refs(body)}\n", encoding="utf-8"
             )
             summary_lines.append(f"- [{chapter_title}]({part_slug}/{candidate}.md)")
             book_lines += [f"## {chapter_title}", "", body, ""]
