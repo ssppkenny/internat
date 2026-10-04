@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import html
 import re
 import shutil
 import sys
@@ -23,6 +24,9 @@ TRANSLIT = {
 }
 
 IMG_RE = re.compile(r"\]\((?:\./)?Photos/([^)\s]+)\)")
+
+VERSE_RE = re.compile(r"^\\begin\{verse\}\n(.*?)\n\\end\{verse\}$", re.M | re.S)
+STANDALONE_IMAGE_RE = re.compile(r"^!\[([^\]]*)\]\((\.\./Photos/[^)\s]+)\)$", re.M)
 
 
 def leading_int(name: str) -> int | None:
@@ -66,6 +70,35 @@ def validate_images(body: str, chapter_path: Path, photos_dir: Path) -> None:
 
 def rewrite_image_refs(body: str) -> str:
     return IMG_RE.sub(r"](../Photos/\1)", body)
+
+
+def convert_verse_blocks(body: str) -> str:
+    def render(match: re.Match[str]) -> str:
+        lines = []
+        for line in match.group(1).splitlines():
+            if line.endswith("\\\\"):
+                line = line[:-2] + "\\"
+            indent = re.match(r"[ \t]*", line).group(0)
+            spaces = "".join(
+                "&nbsp;" * 4 if char == "\t" else "&nbsp;" for char in indent
+            )
+            lines.append(f"> {spaces}{line[len(indent):]}")
+        return "\n".join(lines)
+
+    return VERSE_RE.sub(render, body)
+
+
+def render_image_figures(body: str) -> str:
+    def render(match: re.Match[str]) -> str:
+        alt = html.escape(match.group(1), quote=True)
+        return (
+            "<figure>\n"
+            f'<img src="{match.group(2)}" alt="{alt}">\n'
+            f"<figcaption>{alt}</figcaption>\n"
+            "</figure>"
+        )
+
+    return STANDALONE_IMAGE_RE.sub(render, body)
 
 
 def find_parts(outline_dir: Path) -> list[tuple[int, Path]]:
@@ -123,6 +156,7 @@ def build(
                 raise ValueError(f"{chapter_path}: empty chapter body")
 
             validate_images(body, chapter_path, photos_dir)
+            body = convert_verse_blocks(body)
 
             slug = slugify(chapter_title)
             candidate = slug
@@ -133,7 +167,8 @@ def build(
             used_slugs.add(candidate)
 
             (site_src / part_slug / f"{candidate}.md").write_text(
-                f"# {chapter_title}\n\n{rewrite_image_refs(body)}\n", encoding="utf-8"
+                f"# {chapter_title}\n\n{render_image_figures(rewrite_image_refs(body))}\n",
+                encoding="utf-8",
             )
             summary_lines.append(f"- [{chapter_title}]({part_slug}/{candidate}.md)")
             book_lines += [f"## {chapter_title}", "", body, ""]

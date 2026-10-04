@@ -99,7 +99,8 @@ def test_photos_rewritten_and_copied(outline: Path, tmp_path: Path) -> None:
     )
     build(outline, tmp_path / "src", tmp_path / "build", photos_dir=photos)
     site = (tmp_path / "src" / "part1" / "postuplenie.md").read_text(encoding="utf-8")
-    assert "![Снимок](../Photos/pic.jpg)" in site
+    assert '<img src="../Photos/pic.jpg" alt="Снимок">' in site
+    assert "<figcaption>Снимок</figcaption>" in site
     assert (tmp_path / "src" / "Photos" / "pic.jpg").read_bytes() == b"img"
     book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
     assert "![Снимок](Photos/pic.jpg)" in book
@@ -116,7 +117,7 @@ def test_dot_slash_image_ref_rewritten(outline: Path, tmp_path: Path) -> None:
     )
     build(outline, tmp_path / "src", tmp_path / "build", photos_dir=photos)
     site = (tmp_path / "src" / "part1" / "postuplenie.md").read_text(encoding="utf-8")
-    assert "![Снимок](../Photos/pic.jpg)" in site
+    assert '<img src="../Photos/pic.jpg" alt="Снимок">' in site
 
 
 def test_missing_photo_fails(outline: Path, tmp_path: Path) -> None:
@@ -137,3 +138,51 @@ def test_missing_photo_fails(outline: Path, tmp_path: Path) -> None:
 def test_no_photos_dir_no_refs_builds(outline: Path, tmp_path: Path) -> None:
     build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
     assert (tmp_path / "src" / "SUMMARY.md").exists()
+
+
+def test_verse_block_converted_to_blockquote(outline: Path, tmp_path: Path) -> None:
+    body = (
+        "Проза.\n\n"
+        "\\begin{verse}\n"
+        "В порт,\\\\\n"
+        "\tгорящий,\\\\\n"
+        "\t\tкак расплавленное лето,\\\\\n"
+        "разворачивался\\\\\n"
+        "Нетте».\n"
+        "\\end{verse}"
+    )
+    write_chapter(outline / "0-Часть 1" / "0-Поступление.md", "Поступление", body)
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    site = (tmp_path / "src" / "part1" / "postuplenie.md").read_text(encoding="utf-8")
+    expected_blockquote = (
+        "> В порт,\\\n"
+        "> &nbsp;&nbsp;&nbsp;&nbsp;горящий,\\\n"
+        "> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;как расплавленное лето,\\\n"
+        "> разворачивался\\\n"
+        "> Нетте»."
+    )
+    assert expected_blockquote in site
+    assert "\\begin{verse}" not in site
+    assert "\\end{verse}" not in site
+    book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
+    assert expected_blockquote in book
+    assert "\\begin{verse}" not in book
+
+
+def test_image_rendered_as_figure_on_site(outline: Path, tmp_path: Path) -> None:
+    photos = tmp_path / "Photos"
+    photos.mkdir()
+    (photos / "pic.jpg").write_bytes(b"img")
+    write_chapter(
+        outline / "0-Часть 1" / "0-Поступление.md",
+        "Поступление",
+        "Первый текст.\n\n![Снимок](Photos/pic.jpg)",
+    )
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=photos)
+    site = (tmp_path / "src" / "part1" / "postuplenie.md").read_text(encoding="utf-8")
+    assert "<figure>" in site
+    assert '<img src="../Photos/pic.jpg" alt="Снимок">' in site
+    assert "<figcaption>Снимок</figcaption>" in site
+    assert "![" not in site
+    book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
+    assert "![Снимок](Photos/pic.jpg)" in book
