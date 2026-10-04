@@ -44,8 +44,24 @@ jobs:
             --metadata title="Интернат" \
             --metadata author="Сергей Михно" \
             --metadata lang=ru
-      - name: Copy PDF
-        run: cp book.pdf site/book/internat.pdf
+      - name: Install TeX Live
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            texlive-latex-base texlive-latex-recommended texlive-latex-extra \
+            texlive-fonts-recommended texlive-lang-cyrillic
+      - name: Build PDF
+        run: |
+          pandoc build/book-raw.md -s -t latex --toc --top-level-division=chapter \
+            -V documentclass=memoir -V fontsize=14pt -V papersize=a4paper \
+            --metadata title="Интернат" \
+            --metadata author="Сергей Михно" \
+            -V date="Версия $(cat VERSION)" \
+            -o build/book.tex
+          python3 fix-manuskript-latex.py build/book.tex
+          pdflatex -interaction=nonstopmode -output-directory=build build/book.tex
+          pdflatex -interaction=nonstopmode -output-directory=build build/book.tex
+          cp build/book.pdf site/book/internat.pdf
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site/book
