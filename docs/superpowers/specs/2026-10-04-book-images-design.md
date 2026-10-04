@@ -49,7 +49,10 @@ Photos live in `Photos/` at the repository root and are committed to git
     `photos_dir / <rel>`; otherwise raise
     `ValueError(f"{chapter_path}: missing image Photos/<rel>")`.
   - The copy written to `site/src/partN/<slug>.md` rewrites references to
-    `](../../Photos/<rel>)` (two levels up from `site/src/partN/`).
+    `../Photos/<rel>` (one level up from `site/src/partN/`, matching where
+    mdBook copies the files in the built site). Verified against mdBook
+    v0.5.4: chapter HTML keeps the path and `print.html` rewrites it to
+    `Photos/<rel>` from the output root — both resolve.
   - The copy written to `build/book.md` keeps `Photos/<rel>` unchanged;
     pandoc runs from the repository root and resolves it (verified locally).
 - If `photos_dir` exists, copy it wholesale with
@@ -86,7 +89,7 @@ The author's TeXstudio flow is unchanged; the script is rerun before compiling.
 
 ## Repo / CI
 
-- Commit `Photos/` (currently untracked) as a source asset.
+- `Photos/` is already committed (12 files) as a source asset.
 - No workflow changes: `python3 tools/build_site.py` copies the photos and the
   existing `pandoc build/book.md …` command already runs from the repository
   root.
@@ -96,7 +99,7 @@ The author's TeXstudio flow is unchanged; the script is rerun before compiling.
 - Existing tests are updated to pass `photos_dir=tmp_path / "Photos"` so they
   do not copy the real 6.2 MB folder.
 - New tests:
-  1. Referenced photo: site chapter contains `../../Photos/pic.jpg`, the file
+  1. Referenced photo: site chapter contains `../Photos/pic.jpg`, the file
      exists at `site/src/Photos/pic.jpg`, and `build/book.md` still contains
      `Photos/pic.jpg`.
   2. `./Photos/` prefix variant is normalized to the same rewritten form.
@@ -109,8 +112,8 @@ The author's TeXstudio flow is unchanged; the script is rerun before compiling.
 1. `python3 -m pytest tests/test_build_site.py -v` — all tests pass.
 2. Real run: `python3 tools/build_site.py` writes `site/src/Photos/` and
    `mdbook build site` outputs `site/book/Photos/`; HTML `img src` resolves.
-3. Synthetic EPUB check with a temp markdown referencing `Photos/photo.jpg` and
-   the CI pandoc command: EPUB contains media (`EPUB/media/…`).
+3. EPUB check: run the CI pandoc command locally on `build/book.md`; the EPUB
+   contains the photo (`EPUB/media/…class.jpg…`).
 4. Manual (author): add a reference in Manuskript, regenerate the PDF via the
    existing TeXstudio flow; photo fits the page.
 
