@@ -36,6 +36,8 @@ jobs:
         run: python3 tools/build_site.py
       - name: Build site
         run: mdbook build site
+      - name: Install pandoc
+        run: sudo apt-get update && sudo apt-get install -y pandoc
       - name: Build EPUB
         run: |
           pandoc build/book.md -o site/book/internat.epub --toc \
