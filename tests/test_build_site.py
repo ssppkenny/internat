@@ -78,3 +78,11 @@ def test_missing_title_fails(outline: Path, tmp_path: Path) -> None:
     (outline / "0-Часть 1" / "folder.txt").write_text("ID: 1\n", encoding="utf-8")
     with pytest.raises(ValueError, match="no title"):
         build(outline, tmp_path / "src", tmp_path / "build")
+
+
+def test_empty_title_fails(outline: Path, tmp_path: Path) -> None:
+    (outline / "0-Часть 1" / "folder.txt").write_text(
+        "title:          \nID:             1\n", encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="no title"):
+        build(outline, tmp_path / "src", tmp_path / "build")

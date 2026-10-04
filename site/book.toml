@@ -5,5 +5,5 @@ language = "ru"
 src = "src"
 
 [output.html]
-site-url = "https://ssppkenny.github.io/internat"
+site-url = "https://ssppkenny.github.io/internat/"
 additional-css = ["theme/custom.css"]
