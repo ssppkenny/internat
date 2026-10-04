@@ -14,6 +14,7 @@ OUTLINE_DIR = REPO_ROOT / "internat" / "outline"
 SITE_SRC = REPO_ROOT / "site" / "src"
 BUILD_DIR = REPO_ROOT / "build"
 PHOTOS_DIR = REPO_ROOT / "Photos"
+VERSION_FILE = REPO_ROOT / "VERSION"
 
 TRANSLIT = {
     "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
@@ -59,6 +60,12 @@ def slugify(title: str) -> str:
     transliterated = "".join(TRANSLIT.get(char, char) for char in title.lower())
     slug = re.sub(r"[^a-z0-9]+", "-", transliterated).strip("-")
     return slug or "chapter"
+
+
+def read_version() -> str:
+    if not VERSION_FILE.is_file():
+        raise ValueError(f"{VERSION_FILE}: missing version file")
+    return VERSION_FILE.read_text(encoding="utf-8").strip()
 
 
 def validate_images(body: str, chapter_path: Path, photos_dir: Path) -> None:
@@ -127,7 +134,10 @@ def build(
     site_src: Path = SITE_SRC,
     build_dir: Path = BUILD_DIR,
     photos_dir: Path = PHOTOS_DIR,
+    version: str | None = None,
 ) -> None:
+    if version is None:
+        version = read_version()
     if not outline_dir.is_dir():
         raise ValueError(f"{outline_dir}: not a directory")
 
@@ -140,6 +150,7 @@ def build(
 
     summary_lines = ["# Summary", "", "[Интернат](README.md)", ""]
     book_lines: list[str] = []
+    raw_book_lines: list[str] = []
     chapter_count = 0
 
     parts = find_parts(outline_dir)
@@ -150,6 +161,7 @@ def build(
 
         summary_lines += [f"# {part_title}", ""]
         book_lines += [f"# {part_title}", ""]
+        raw_book_lines += [f"# {part_title}", ""]
 
         used_slugs: set[str] = set()
         for _, chapter_path in find_chapters(part_dir):
@@ -159,6 +171,7 @@ def build(
                 raise ValueError(f"{chapter_path}: empty chapter body")
 
             validate_images(body, chapter_path, photos_dir)
+            raw_body = body
             body = convert_verse_blocks(body)
 
             slug = slugify(chapter_title)
@@ -175,6 +188,7 @@ def build(
             )
             summary_lines.append(f"- [{chapter_title}]({part_slug}/{candidate}.md)")
             book_lines += [f"## {chapter_title}", "", body, ""]
+            raw_book_lines += [f"## {chapter_title}", "", raw_body, ""]
             chapter_count += 1
 
         summary_lines.append("")
@@ -183,12 +197,14 @@ def build(
     (site_src / "README.md").write_text(
         "# Интернат\n\n"
         "**Сергей Михно**\n\n"
+        f"Версия {version}\n\n"
         "Воспоминания о годах учёбы в ФМШ №18 при МГУ.\n\n"
         "- [Скачать PDF](internat.pdf)\n"
         "- [Скачать EPUB](internat.epub)\n",
         encoding="utf-8",
     )
     (build_dir / "book.md").write_text("\n".join(book_lines), encoding="utf-8")
+    (build_dir / "book-raw.md").write_text("\n".join(raw_book_lines), encoding="utf-8")
 
     print(f"Wrote {chapter_count} chapters to {site_src}")
 

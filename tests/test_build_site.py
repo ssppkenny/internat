@@ -4,6 +4,8 @@ import pytest
 
 from tools.build_site import build
 
+import tools.build_site as build_site
+
 
 def write_part(path: Path, title: str) -> None:
     path.mkdir(parents=True, exist_ok=True)
@@ -70,6 +72,7 @@ def test_readme_has_download_links(outline: Path, tmp_path: Path) -> None:
     build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
     readme = (tmp_path / "src" / "README.md").read_text(encoding="utf-8")
     assert "**Сергей Михно**" in readme
+    assert "Версия 0.1" in readme
     assert "[Скачать PDF](internat.pdf)" in readme
     assert "[Скачать EPUB](internat.epub)" in readme
 
@@ -186,3 +189,41 @@ def test_image_rendered_as_figure_on_site(outline: Path, tmp_path: Path) -> None
     assert "![" not in site
     book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
     assert "![Снимок](Photos/pic.jpg)" in book
+
+
+def test_readme_has_version(outline: Path, tmp_path: Path) -> None:
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    readme = (tmp_path / "src" / "README.md").read_text(encoding="utf-8")
+    assert "**Сергей Михно**\n\nВерсия 0.1\n\n" in readme
+
+
+def test_missing_version_file_fails(
+    outline: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(build_site, "VERSION_FILE", tmp_path / "VERSION")
+    with pytest.raises(ValueError, match="missing version file"):
+        build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+
+
+def test_book_raw_keeps_verse_and_photo_refs(outline: Path, tmp_path: Path) -> None:
+    photos = tmp_path / "Photos"
+    photos.mkdir()
+    (photos / "pic.jpg").write_bytes(b"img")
+    body = (
+        "Проза.\n\n"
+        "\\begin{verse}\n"
+        "Строка.\\\\\n"
+        "\\end{verse}\n\n"
+        "![Снимок](Photos/pic.jpg)"
+    )
+    write_chapter(outline / "0-Часть 1" / "0-Поступление.md", "Поступление", body)
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=photos)
+    raw = (tmp_path / "build" / "book-raw.md").read_text(encoding="utf-8")
+    assert "\\begin{verse}" in raw
+    assert "\\end{verse}" in raw
+    assert "Строка.\\\\" in raw
+    assert "![Снимок](Photos/pic.jpg)" in raw
+    assert "<figure>" not in raw
+    book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
+    assert "\\begin{verse}" not in book
+    assert "> Строка." in book
