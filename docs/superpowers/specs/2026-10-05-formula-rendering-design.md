@@ -85,8 +85,9 @@ image in `build/book.md` (the EPUB source only):
 Add `dvisvgm` to the `Install TeX Live` apt list in
 `.github/workflows/pages.yml` (Ubuntu package, DVI-to-SVG, no Ghostscript
 needed). `latex` comes from `texlive-latex-base` and `standalone.cls` from
-`texlive-latex-extra`, both already installed. The existing pandoc EPUB
-command is unchanged.
+`texlive-latex-extra`, both already installed. `Install TeX Live` must run
+before `Generate site sources`, because the converter invokes `latex` and
+`dvisvgm`. The existing pandoc EPUB command is unchanged.
 
 ## Data flow
 

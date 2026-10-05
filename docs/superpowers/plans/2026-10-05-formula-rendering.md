@@ -18,7 +18,7 @@
 - Module-level interfaces (tests monkeypatch them): `render_math_svg(expr: str, display: bool, out_dir: Path) -> Path` and `replace_math(body: str, math_dir: Path) -> str`.
 - Render failure raises `ValueError`; `main()` already converts that to `error: ...` and exit 1.
 - `site/book.toml`: add `mathjax-support = true` under the existing `[output.html]` table; change nothing else.
-- `.github/workflows/pages.yml`: append `dvisvgm` to the existing `--no-install-recommends` apt list; no other workflow change.
+- `.github/workflows/pages.yml`: append `dvisvgm` to the existing `--no-install-recommends` apt list, and move the `Install TeX Live` step before `Generate site sources` (the converter invokes `latex`/`dvisvgm`); no other workflow change.
 - Tests: `python3 -m pytest tests/ -v` from the repo root; expected `25 passed` (20 existing + 5 new).
 - Commit messages are short and imperative. Push to `master` and live verification require explicit user confirmation.
 
@@ -335,7 +335,7 @@ to:
             texlive-fonts-recommended texlive-lang-cyrillic lmodern cm-super dvisvgm
 ```
 
-No other workflow change.
+Also move the `Install TeX Live` step before `Generate site sources`, since the converter invokes `latex`/`dvisvgm`; the earlier append-only constraint is superseded by this ordering requirement. No other workflow change.
 
 - [ ] **Step 3: Validate YAML and verify both outputs locally**
 
