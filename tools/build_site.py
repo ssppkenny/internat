@@ -168,7 +168,8 @@ def build(
             chapter_title = parse_title(chapter_path)
             body = strip_front_matter(chapter_path.read_text(encoding="utf-8"))
             if not body:
-                raise ValueError(f"{chapter_path}: empty chapter body")
+                print(f"warning: {chapter_path}: empty chapter body, skipping")
+                continue
 
             validate_images(body, chapter_path, photos_dir)
             raw_body = body

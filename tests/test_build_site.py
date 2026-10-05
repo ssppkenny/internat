@@ -91,6 +91,19 @@ def test_empty_title_fails(outline: Path, tmp_path: Path) -> None:
         build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
 
 
+def test_empty_chapter_skipped(outline: Path, tmp_path: Path) -> None:
+    write_chapter(outline / "1-Часть 2" / "3-Новая.md", "Новая", "")
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    summary = (tmp_path / "src" / "SUMMARY.md").read_text(encoding="utf-8")
+    assert "Новая" not in summary
+    assert "- [Тест]" in summary
+    assert not (tmp_path / "src" / "part2" / "novaya.md").exists()
+    book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
+    assert "## Новая" not in book
+    raw = (tmp_path / "build" / "book-raw.md").read_text(encoding="utf-8")
+    assert "## Новая" not in raw
+
+
 def test_photos_rewritten_and_copied(outline: Path, tmp_path: Path) -> None:
     photos = tmp_path / "Photos"
     photos.mkdir()
