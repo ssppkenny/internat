@@ -49,7 +49,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             texlive-latex-base texlive-latex-recommended texlive-latex-extra \
-            texlive-fonts-recommended texlive-lang-cyrillic lmodern cm-super
+            texlive-fonts-recommended texlive-lang-cyrillic lmodern cm-super dvisvgm
       - name: Build PDF
         run: |
           pandoc build/book-raw.md -s -t latex --toc --top-level-division=chapter \
