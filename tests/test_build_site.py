@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import pytest
@@ -240,3 +241,113 @@ def test_book_raw_keeps_verse_and_photo_refs(outline: Path, tmp_path: Path) -> N
     book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
     assert "\\begin{verse}" not in book
     assert "> Строка." in book
+
+
+def test_display_math_becomes_svg_ref(
+    outline: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[str, bool]] = []
+
+    def fake_render(expr: str, display: bool, out_dir: Path) -> Path:
+        calls.append((expr, display))
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / "eq-stub.svg"
+        path.write_text("<svg/>", encoding="utf-8")
+        return path
+
+    monkeypatch.setattr(build_site, "render_math_svg", fake_render)
+    write_chapter(
+        outline / "0-Часть 1" / "0-Поступление.md",
+        "Поступление",
+        "До.\n\n$$ x^2 $$\n\nПосле.",
+    )
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
+    assert "![](build/math/eq-stub.svg)" in book
+    assert "$" not in book
+    assert calls == [("x^2", True)]
+    raw = (tmp_path / "build" / "book-raw.md").read_text(encoding="utf-8")
+    assert "$$ x^2 $$" in raw
+    site = (tmp_path / "src" / "part1" / "postuplenie.md").read_text(encoding="utf-8")
+    assert "$$ x^2 $$" in site
+
+
+def test_inline_math_becomes_svg_ref(
+    outline: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[str, bool]] = []
+
+    def fake_render(expr: str, display: bool, out_dir: Path) -> Path:
+        calls.append((expr, display))
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / "eq-inline.svg"
+        path.write_text("<svg/>", encoding="utf-8")
+        return path
+
+    monkeypatch.setattr(build_site, "render_math_svg", fake_render)
+    write_chapter(
+        outline / "0-Часть 1" / "0-Поступление.md",
+        "Поступление",
+        "Текст $x^2$ ещё.",
+    )
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
+    assert "Текст ![](build/math/eq-inline.svg) ещё." in book
+    assert calls == [("x^2", False)]
+    raw = (tmp_path / "build" / "book-raw.md").read_text(encoding="utf-8")
+    assert "Текст $x^2$ ещё." in raw
+    site = (tmp_path / "src" / "part1" / "postuplenie.md").read_text(encoding="utf-8")
+    assert "Текст $x^2$ ещё." in site
+
+
+def test_currency_amounts_are_not_math(
+    outline: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(expr: str, display: bool, out_dir: Path) -> Path:
+        raise AssertionError(f"renderer called for {expr!r}")
+
+    monkeypatch.setattr(build_site, "render_math_svg", boom)
+    write_chapter(
+        outline / "0-Часть 1" / "0-Поступление.md",
+        "Поступление",
+        "Стоит $5 и $7.",
+    )
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
+    assert "Стоит $5 и $7." in book
+
+
+def test_math_render_failure_fails_build(
+    outline: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def fail(expr: str, display: bool, out_dir: Path) -> Path:
+        raise ValueError(f"math render failed for {expr!r}: boom")
+
+    monkeypatch.setattr(build_site, "render_math_svg", fail)
+    write_chapter(
+        outline / "0-Часть 1" / "0-Поступление.md",
+        "Поступление",
+        "$$ x $$",
+    )
+    with pytest.raises(ValueError, match="math render failed"):
+        build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+
+
+@pytest.mark.skipif(
+    shutil.which("latex") is None or shutil.which("dvisvgm") is None,
+    reason="latex or dvisvgm not installed",
+)
+def test_real_math_render_produces_svg(outline: Path, tmp_path: Path) -> None:
+    write_chapter(
+        outline / "0-Часть 1" / "0-Поступление.md",
+        "Поступление",
+        "$$ \\frac{1}{\\sqrt{n}} $$",
+    )
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    svgs = sorted((tmp_path / "build" / "math").glob("*.svg"))
+    assert len(svgs) == 1
+    text = svgs[0].read_text(encoding="utf-8")
+    assert "<svg" in text
+    assert "<path" in text
+    book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
+    assert f"![](build/math/{svgs[0].name})" in book

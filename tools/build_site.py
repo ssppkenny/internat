@@ -3,10 +3,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import html
 import re
 import shutil
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -28,6 +31,9 @@ IMG_RE = re.compile(r"\]\((?:\./)?Photos/([^)\s]+)\)")
 
 VERSE_RE = re.compile(r"^\\begin\{verse\}\n(.*?)\n\\end\{verse\}$", re.M | re.S)
 STANDALONE_IMAGE_RE = re.compile(r"^!\[([^\]]*)\]\((\.\./Photos/[^)\s]+)\)$", re.M)
+MATH_REF_PREFIX = "build/math"
+DISPLAY_MATH_RE = re.compile(r"\$\$(.+?)\$\$", re.S)
+INLINE_MATH_RE = re.compile(r"(?<!\$)\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\$)")
 
 
 def leading_int(name: str) -> int | None:
@@ -111,6 +117,64 @@ def render_image_figures(body: str) -> str:
     return STANDALONE_IMAGE_RE.sub(render, body)
 
 
+def render_math_svg(expr: str, display: bool, out_dir: Path) -> Path:
+    digest = hashlib.sha1(f"{int(display)}:{expr}".encode("utf-8")).hexdigest()[:12]
+    out_path = out_dir / f"eq-{digest}.svg"
+    if out_path.is_file():
+        return out_path
+
+    body = f"$\\displaystyle {expr}$" if display else f"${expr}$"
+    document = (
+        "\\documentclass[border=1pt]{standalone}\n"
+        "\\begin{document}\n"
+        f"{body}\n"
+        "\\end{document}\n"
+    )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_dir = Path(tmp)
+        (tmp_dir / "formula.tex").write_text(document, encoding="utf-8")
+        commands = [
+            ["latex", "-interaction=nonstopmode", "-halt-on-error", "formula.tex"],
+            [
+                "dvisvgm",
+                "--no-fonts",
+                "--exact-bbox",
+                "formula.dvi",
+                "-o",
+                str(out_path.resolve()),
+            ],
+        ]
+        for command in commands:
+            try:
+                result = subprocess.run(
+                    command, cwd=tmp_dir, capture_output=True, text=True
+                )
+            except FileNotFoundError as error:
+                raise ValueError(
+                    f"math render failed for {expr!r}: {command[0]} not found"
+                ) from error
+            if result.returncode != 0:
+                tail = "\n".join((result.stdout + result.stderr).splitlines()[-5:])
+                raise ValueError(f"math render failed for {expr!r}: {tail}")
+    if not out_path.is_file():
+        raise ValueError(f"math render failed for {expr!r}: no SVG produced")
+    return out_path
+
+
+def replace_math(body: str, math_dir: Path) -> str:
+    def render_display(match: re.Match[str]) -> str:
+        path = render_math_svg(match.group(1).strip(), True, math_dir)
+        return f"![]({MATH_REF_PREFIX}/{path.name})"
+
+    def render_inline(match: re.Match[str]) -> str:
+        path = render_math_svg(match.group(1), False, math_dir)
+        return f"![]({MATH_REF_PREFIX}/{path.name})"
+
+    body = DISPLAY_MATH_RE.sub(render_display, body)
+    return INLINE_MATH_RE.sub(render_inline, body)
+
+
 def find_parts(outline_dir: Path) -> list[tuple[int, Path]]:
     parts = []
     for child in outline_dir.iterdir():
@@ -174,6 +238,7 @@ def build(
             validate_images(body, chapter_path, photos_dir)
             raw_body = body
             body = convert_verse_blocks(body)
+            epub_body = replace_math(body, build_dir / "math")
 
             slug = slugify(chapter_title)
             candidate = slug
@@ -188,7 +253,7 @@ def build(
                 encoding="utf-8",
             )
             summary_lines.append(f"- [{chapter_title}]({part_slug}/{candidate}.md)")
-            book_lines += [f"## {chapter_title}", "", body, ""]
+            book_lines += [f"## {chapter_title}", "", epub_body, ""]
             raw_book_lines += [f"## {chapter_title}", "", raw_body, ""]
             chapter_count += 1
 
