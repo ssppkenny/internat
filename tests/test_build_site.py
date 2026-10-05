@@ -1,4 +1,5 @@
 import shutil
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -351,3 +352,15 @@ def test_real_math_render_produces_svg(outline: Path, tmp_path: Path) -> None:
     assert "<path" in text
     book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
     assert f"![](build/math/{svgs[0].name})" in book
+
+
+def test_readme_has_update_date(outline: Path, tmp_path: Path) -> None:
+    build(
+        outline,
+        tmp_path / "src",
+        tmp_path / "build",
+        photos_dir=tmp_path / "Photos",
+        last_changed=date(2026, 10, 5),
+    )
+    readme = (tmp_path / "src" / "README.md").read_text(encoding="utf-8")
+    assert "Версия 0.1\n\nОбновлено 5 октября 2026\n\n" in readme

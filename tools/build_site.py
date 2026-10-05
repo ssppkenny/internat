@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import date
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -72,6 +73,26 @@ def read_version() -> str:
     if not VERSION_FILE.is_file():
         raise ValueError(f"{VERSION_FILE}: missing version file")
     return VERSION_FILE.read_text(encoding="utf-8").strip()
+
+
+MONTHS_RU = (
+    "января",
+    "февраля",
+    "марта",
+    "апреля",
+    "мая",
+    "июня",
+    "июля",
+    "августа",
+    "сентября",
+    "октября",
+    "ноября",
+    "декабря",
+)
+
+
+def format_date_ru(d: date) -> str:
+    return f"{d.day} {MONTHS_RU[d.month - 1]} {d.year}"
 
 
 def validate_images(body: str, chapter_path: Path, photos_dir: Path) -> None:
@@ -199,9 +220,12 @@ def build(
     build_dir: Path = BUILD_DIR,
     photos_dir: Path = PHOTOS_DIR,
     version: str | None = None,
+    last_changed: date | None = None,
 ) -> None:
     if version is None:
         version = read_version()
+    if last_changed is None:
+        last_changed = date.today()
     if not outline_dir.is_dir():
         raise ValueError(f"{outline_dir}: not a directory")
 
@@ -264,6 +288,7 @@ def build(
         "# Интернат\n\n"
         "**Сергей Михно**\n\n"
         f"Версия {version}\n\n"
+        f"Обновлено {format_date_ru(last_changed)}\n\n"
         "Воспоминания о годах учёбы в ФМШ №18 при МГУ.\n\n"
         "- [Скачать PDF](internat.pdf)\n"
         "- [Скачать EPUB](internat.epub)\n",
