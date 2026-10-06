@@ -22,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -38,6 +40,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             texlive-latex-base texlive-latex-recommended texlive-latex-extra \
             texlive-fonts-recommended texlive-lang-cyrillic lmodern cm-super dvisvgm
+      - name: Compute version
+        run: python3 tools/version_from_git.py > VERSION
       - name: Generate site sources
         run: python3 tools/build_site.py
       - name: Build site
