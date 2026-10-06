@@ -45,20 +45,32 @@ def compute() -> str:
     hundredths = parse_base(git("show", "HEAD:VERSION"))
     anchor = anchor_commit()
     output = git(
-        "log", "--no-merges", "--name-status", "--format=%x00",
+        "log", "--no-merges", "--name-status", "--format=%H", "-z",
         f"{anchor}..HEAD", "--", "internat/outline",
     )
-    for block in output.split("\x00"):
-        files = [line for line in block.splitlines() if line.strip()]
-        if not files:
+    commits: list[list[tuple[str, str]]] = []
+    tokens = output.split("\x00")
+    index = 0
+    while index < len(tokens):
+        token = tokens[index].strip()
+        if not token:
+            index += 1
             continue
+        if len(token) == 40 and all(char in "0123456789abcdef" for char in token):
+            commits.append([])
+            index += 1
+            continue
+        paths = 2 if token[0] in "RC" else 1
+        commits[-1].append((token, tokens[index + paths]))
+        index += paths + 1
+    for files in commits:
         added = sum(
-            1 for line in files
-            if line.split("\t")[0] == "A" and line.endswith(".md")
+            1 for status, path in files
+            if status == "A" and path.endswith(".md")
         )
         changed = sum(
-            1 for line in files
-            if line.split("\t")[0] != "A" and line.endswith(".md")
+            1 for status, path in files
+            if status != "A" and path.endswith(".md")
         )
         hundredths += commit_increment(added, changed)
     return format_version(hundredths)
@@ -67,7 +79,7 @@ def compute() -> str:
 def main() -> int:
     try:
         print(compute())
-    except (InvalidOperation, RuntimeError, ValueError) as error:
+    except (InvalidOperation, OSError, RuntimeError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     return 0

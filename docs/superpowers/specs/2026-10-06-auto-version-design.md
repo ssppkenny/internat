@@ -40,14 +40,16 @@ Display format trims trailing zeros: base `0.1`; `+0.01` → `0.11`; `+0.5` → 
 
 New stdlib-only script `tools/version_from_git.py`:
 
-- `parse_base(text: str) -> Decimal` — parses the base, raises `ValueError` on invalid content.
-- `commit_increment(statuses: list[str]) -> Decimal` — pure classifier over name-status codes:
-  `["A"]` → `0.5`; `["M", "M"]` → `0.01`; `["D"]` → `0.01`; `[]` → `0`.
-- `format_version(value: Decimal) -> str` — trailing-zero-trimmed display string.
+- `parse_base(text: str) -> int` — parses the base into exact hundredths (`Decimal(text.strip()) * 100`);
+  invalid content raises `decimal.InvalidOperation` or `ValueError`.
+- `commit_increment(added: int, changed: int) -> int` — hundredths classifier: `added > 0` → `50`;
+  otherwise `changed > 0` → `1`; otherwise `0`.
+- `format_version(hundredths: int) -> str` — divides by 100 and trims trailing zeros.
 - `compute() -> str` — in the current working directory: discovers `ANCHOR`, reads `HEAD:VERSION`, runs
-  `git log --format=@%H --name-status ANCHOR..HEAD -- internat/outline`, sums per-commit increments,
-  returns the formatted version.
-- `main() -> int` — prints the version to stdout; on any failure prints an error to stderr and returns 1.
+  `git log --format=%H --name-status -z ANCHOR..HEAD -- internat/outline` (NUL-delimited fields, so paths
+  are never C-quoted or otherwise munged), sums per-commit increments, returns the formatted version.
+- `main() -> int` — prints the version to stdout; on any failure (including a missing `git`, surfaced as
+  `OSError`) prints an error to stderr and returns 1.
 
 The script never writes `VERSION` itself; it prints, and the caller redirects.
 
@@ -75,14 +77,14 @@ exit code 1, which fails the workflow step loudly. The build never deploys a sil
 
 New `tests/test_version_from_git.py` (pytest):
 
-1. `parse_base("0.1") == Decimal("0.1")`; `parse_base("abc")` raises `ValueError`.
-2. `commit_increment`: `["A"]` → 0.5; `["A", "M"]` → 0.5; `["M"]` → 0.01; `["M", "M", "D"]` → 0.01;
-   `[]` → 0.
-3. `format_version`: `Decimal("0.1")` → `"0.1"`; `Decimal("0.11")` → `"0.11"`; `Decimal("0.6")` → `"0.6"`;
-   `Decimal("1.87")` → `"1.87"`.
-4. Integration test in a temporary git repo (skipped if `git` is unavailable): commit a chapter + `VERSION`
-   (add commit), edit the chapter (edit commit), commit an unrelated file (ignored) → expected `0.61`;
-   running twice yields the same result (idempotent).
+1. `parse_base("0.1") == 10`; `parse_base("abc")` raises `decimal.InvalidOperation`.
+2. `commit_increment`: `(1, 0)` → 50; `(2, 3)` → 50; `(0, 1)` → 1; `(0, 0)` → 0.
+3. `format_version`: `10` → `"0.1"`; `60` → `"0.6"`; `187` → `"1.87"`; `611` → `"6.11"`.
+4. Integration test in a temporary git repo: commit a chapter + `VERSION` (add commit), edit the chapter
+   (edit commit), commit an unrelated file (ignored) → expected `0.61`; running twice yields the same
+   result (idempotent).
+5. Quoted-path integration test: add and then rename a chapter whose path contains a space and Cyrillic
+   characters → `0.61`. Missing-`git` test: `main()` returns 1 and prints an `error:` message.
 
 Existing 26 tests stay green.
 

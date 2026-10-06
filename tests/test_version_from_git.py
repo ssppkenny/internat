@@ -2,6 +2,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+from tools import version_from_git
 from tools.version_from_git import commit_increment, format_version, parse_base
 
 SCRIPT = Path(__file__).resolve().parent.parent / "tools" / "version_from_git.py"
@@ -64,6 +67,24 @@ def test_computes_version_from_history(tmp_path: Path) -> None:
     assert result.stdout.strip() == "0.61"
 
 
+def test_quoted_unicode_paths_added_and_renamed(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    init_repo(repo)
+    git(repo, "config", "core.quotePath", "true")
+    (repo / "VERSION").write_text("0.1\n", encoding="utf-8")
+    commit(repo, "initial")
+    chapter = repo / "internat" / "outline" / "0-Часть 1" / "Новая глава.md"
+    chapter.parent.mkdir(parents=True)
+    chapter.write_text("one\n", encoding="utf-8")
+    commit(repo, "add quoted chapter")
+    renamed = chapter.with_name("Другая глава.md")
+    git(repo, "mv", str(chapter.relative_to(repo)), str(renamed.relative_to(repo)))
+    commit(repo, "rename quoted chapter")
+    result = run([sys.executable, str(SCRIPT)], repo)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "0.61"
+
+
 def test_missing_version_fails(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     init_repo(repo)
@@ -72,3 +93,16 @@ def test_missing_version_fails(tmp_path: Path) -> None:
     result = run([sys.executable, str(SCRIPT)], repo)
     assert result.returncode == 1
     assert result.stderr.startswith("error:")
+
+
+def test_missing_git_reports_error(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def raise_missing(*args: object, **kwargs: object) -> object:
+        raise FileNotFoundError("No such file or directory: 'git'")
+
+    monkeypatch.setattr(version_from_git.subprocess, "run", raise_missing)
+    assert version_from_git.main() == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith("error:")
