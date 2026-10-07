@@ -1,0 +1,5 @@
+Name:                Леша Онацкий
+ID:                  1
+Importance:          2
+POV:                 True
+Color:               #e8fdd3

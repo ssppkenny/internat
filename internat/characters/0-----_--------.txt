@@ -1,0 +1,5 @@
+Name:                Олег Безруков
+ID:                  0
+Importance:          2
+POV:                 True
+Color:               #94e09c
