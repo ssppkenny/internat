@@ -125,6 +125,15 @@ def convert_verse_blocks(body: str) -> str:
     return VERSE_RE.sub(render, body)
 
 
+def convert_verse_emphasis(body: str) -> str:
+    def render(match: re.Match[str]) -> str:
+        text = re.sub(r"\*\*(.+?)\*\*", r"\\textbf{\1}", match.group(1))
+        text = re.sub(r"(?<!\*)\*([^*\n]+?)\*(?!\*)", r"\\emph{\1}", text)
+        return f"\\begin{{verse}}\n{text}\n\\end{{verse}}"
+
+    return VERSE_RE.sub(render, body)
+
+
 def render_image_figures(body: str) -> str:
     def render(match: re.Match[str]) -> str:
         alt = html.escape(match.group(1), quote=True)
@@ -260,7 +269,7 @@ def build(
                 continue
 
             validate_images(body, chapter_path, photos_dir)
-            raw_body = body
+            raw_body = convert_verse_emphasis(body)
             body = convert_verse_blocks(body)
             epub_body = replace_math(body, build_dir / "math")
 

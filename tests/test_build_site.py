@@ -354,6 +354,28 @@ def test_real_math_render_produces_svg(outline: Path, tmp_path: Path) -> None:
     assert f"![](build/math/{svgs[0].name})" in book
 
 
+def test_verse_emphasis_converted_for_pdf(outline: Path, tmp_path: Path) -> None:
+    write_chapter(
+        outline / "0-Часть 1" / "0-Поступление.md",
+        "Поступление",
+        "Проза **жирная**.\n\n"
+        "\\begin{verse}\n"
+        "**Припев:**\\\\\n"
+        "*Тихо* поёт.\\\\\n"
+        "\\end{verse}\n",
+    )
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    raw = (tmp_path / "build" / "book-raw.md").read_text(encoding="utf-8")
+    assert "\\textbf{Припев:}" in raw
+    assert "\\emph{Тихо}" in raw
+    assert "**Припев:**" not in raw
+    assert "Проза **жирная**." in raw
+    book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
+    assert "> **Припев:**\\" in book
+    site = (tmp_path / "src" / "part1" / "postuplenie.md").read_text(encoding="utf-8")
+    assert "> **Припев:**\\" in site
+
+
 def test_readme_has_update_date(outline: Path, tmp_path: Path) -> None:
     build(
         outline,
