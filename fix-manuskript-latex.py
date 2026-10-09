@@ -59,6 +59,26 @@ def fix(tex: str) -> str:
                 1,
             )
 
+    if r"\usepackage{placeins}" not in tex:
+        if r"\usepackage{graphicx}" in tex:
+            tex = tex.replace(
+                r"\usepackage{graphicx}",
+                "\\usepackage{placeins}\n\\usepackage{graphicx}",
+                1,
+            )
+        else:
+            tex = tex.replace(
+                r"\begin{document}",
+                "\\usepackage{placeins}\n\\begin{document}",
+                1,
+            )
+
+    # Let floats sit next to their text, but never drift past a heading
+    tex = re.sub(r"\\begin\{figure\}(?!\[)", r"\\begin{figure}[htbp]", tex)
+
+    if "\\FloatBarrier" not in tex:
+        tex = re.sub(r"(?m)^(\\(?:section|chapter)\{)", r"\\FloatBarrier\n\1", tex)
+
     return tex
 
 

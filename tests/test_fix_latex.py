@@ -45,3 +45,36 @@ def test_fixer_is_idempotent(tmp_path: Path) -> None:
     once = run_fix(tex, tmp_path)
     twice = run_fix(once, tmp_path)
     assert twice.count("\\setkeys{Gin}") == 1
+
+
+def test_figures_get_here_placement_and_barriers(tmp_path: Path) -> None:
+    tex = (
+        "\\documentclass{memoir}\n\\usepackage{graphicx}\n"
+        "\\begin{document}\n"
+        "\\chapter{One}\n"
+        "\\section{First}\n"
+        "\\begin{figure}\n\\includegraphics{x.jpg}\n\\end{figure}\n"
+        "\\section{Second}\nhi\n"
+        "\\end{document}\n"
+    )
+    fixed = run_fix(tex, tmp_path)
+    assert "\\usepackage{placeins}\n" in fixed
+    assert "\\begin{figure}[htbp]" in fixed
+    assert "\\FloatBarrier\n\\chapter{One}" in fixed
+    assert "\\FloatBarrier\n\\section{First}" in fixed
+    assert "\\FloatBarrier\n\\section{Second}" in fixed
+
+
+def test_figure_placement_is_idempotent(tmp_path: Path) -> None:
+    tex = (
+        "\\documentclass{memoir}\n"
+        "\\begin{document}\n"
+        "\\section{First}\n"
+        "\\begin{figure}\n\\includegraphics{x.jpg}\n\\end{figure}\n"
+        "\\end{document}\n"
+    )
+    once = run_fix(tex, tmp_path)
+    twice = run_fix(once, tmp_path)
+    assert twice == once
+    assert twice.count("\\FloatBarrier") == 1
+    assert "[htbp][htbp]" not in twice
