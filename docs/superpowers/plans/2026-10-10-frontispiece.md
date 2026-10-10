@@ -240,3 +240,13 @@ curl -s -o /tmp/opencode/live.pdf "https://ssppkenny.github.io/internat/internat
 ```
 
 Expected: landing contains `src="Photos/Omslag.jpg"`; photo URL 200; EPUB lists `cover`; PDF's first image is 1024x765 on page 2; all downloads 200.
+
+## Amendment 2026-10-10: title page redesign
+
+The cover is now on page 1 together with the title, above it, inside a thin
+rectangle frame with 1.2 cm margins; the version line sits at the bottom of
+page 1. The mechanism is `--include-in-header=frontispiece.tex`: the tracked
+`frontispiece.tex` redefines `\maketitle` using eso-pic's
+`\AddToShipoutPictureBG*` with `\AtPageCenter`. eso-pic ships in
+texlive-latex-recommended, which CI already installs. The table of contents now
+starts on page 2. This supersedes the earlier separate-page frontispiece.

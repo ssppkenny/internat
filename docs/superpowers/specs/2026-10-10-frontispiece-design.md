@@ -103,3 +103,13 @@ Expected suite: 37 passed.
   so CI checkouts include it.
 - Pandoc cover embedding requires the file to be present at the given
   relative path at build time; it is tracked, so CI checkouts include it.
+
+## Amendment 2026-10-10: title page redesign
+
+The PDF cover now appears ON page 1 together with the title, above it, inside
+a thin rectangle frame with 1.2 cm margins; the version line sits at the bottom
+of page 1. The mechanism is `--include-in-header=frontispiece.tex`: the tracked
+`frontispiece.tex` redefines `\maketitle` using eso-pic's
+`\AddToShipoutPictureBG*` with `\AtPageCenter`. eso-pic ships in
+texlive-latex-recommended, which CI already installs. The table of contents now
+starts on page 2. This supersedes the earlier separate-page frontispiece.

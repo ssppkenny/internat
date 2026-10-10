@@ -1,5 +1,19 @@
-\clearpage
-\begin{center}
-\includegraphics[width=\linewidth,height=0.75\textheight,keepaspectratio]{Photos/Omslag.jpg}
-\end{center}
-\clearpage
+\usepackage{eso-pic}
+\makeatletter
+\renewcommand{\maketitle}{%
+\thispagestyle{empty}%
+\AddToShipoutPictureBG*{%
+\AtPageCenter{\makebox(0,0){\setlength{\fboxsep}{14pt}%
+\fbox{\parbox[c][\dimexpr\paperheight-2.4cm-2\fboxsep-2\fboxrule\relax][c]{\dimexpr\paperwidth-2.4cm-2\fboxsep-2\fboxrule\relax}{%
+\centering
+\includegraphics[width=0.62\linewidth,height=0.5\paperheight,keepaspectratio]{Photos/Omslag.jpg}\par
+\vfill
+{\Huge\bfseries \@title}\par
+\vspace{1.2em}
+{\Large \@author}\par
+\vfill
+{\small \@date}\par
+}}}}%
+}%
+\null\clearpage}
+\makeatother
