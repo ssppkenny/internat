@@ -51,6 +51,7 @@ jobs:
       - name: Build EPUB
         run: |
           pandoc build/book.md -o site/book/internat.epub --toc \
+            --epub-cover-image=Photos/Omslag.jpg \
             --metadata title="Интернат" \
             --metadata author="Сергей Михно" \
             --metadata lang=ru
