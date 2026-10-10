@@ -62,6 +62,7 @@ jobs:
             --metadata title="Интернат" \
             --metadata author="Сергей Михно" \
             -V date="Версия $(cat VERSION)" \
+            --include-before-body=frontispiece.tex \
             -o build/book.tex
           python3 fix-manuskript-latex.py build/book.tex
           pdflatex -interaction=nonstopmode -output-directory=build build/book.tex

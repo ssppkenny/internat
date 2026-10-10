@@ -394,12 +394,8 @@ def test_readme_starts_with_frontispiece(outline: Path, tmp_path: Path) -> None:
     assert readme.startswith("![Обложка](Photos/Omslag.jpg)\n\n# Интернат\n\n")
 
 
-def test_book_raw_has_frontispiece_before_first_part(outline: Path, tmp_path: Path) -> None:
+def test_book_raw_has_no_frontispiece(outline: Path, tmp_path: Path) -> None:
     build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
     raw = (tmp_path / "build" / "book-raw.md").read_text(encoding="utf-8")
-    assert raw.startswith(
-        "\\begin{center}\n"
-        "\\includegraphics[width=\\linewidth,height=0.75\\textheight,keepaspectratio]{Photos/Omslag.jpg}\n"
-        "\\end{center}\n"
-    )
-    assert raw.index("\\includegraphics") < raw.index("# Часть 1")
+    assert "\\includegraphics" not in raw
+    assert raw.startswith("# Часть 1\n")

@@ -12,11 +12,13 @@
 
 - Landing frontispiece line is exactly `![Обложка](Photos/Omslag.jpg)` as the FIRST line of `site/src/README.md`, followed by a blank line and then `# Интернат`.
 - No caption under the landing image; no new CSS.
-- PDF frontispiece is exactly this raw LaTeX block, prepended to `build/book-raw.md` before the first part heading (title page stays first):
+- PDF frontispiece is exactly this raw LaTeX block (the `\clearpage` pair gives it its own page between the title page and the TOC), stored in the tracked root file `frontispiece.tex` and passed to pandoc via `--include-before-body=frontispiece.tex`:
   ```
+  \clearpage
   \begin{center}
   \includegraphics[width=\linewidth,height=0.75\textheight,keepaspectratio]{Photos/Omslag.jpg}
   \end{center}
+  \clearpage
   ```
 - EPUB: add exactly `--epub-cover-image=Photos/Omslag.jpg \` to the CI `Build EPUB` pandoc command; no other workflow change.
 - `Photos/Omslag.jpg` (1024x765, orientation Undefined, 344248 B) is ALREADY tracked (author commit `10a59f9`); do not modify or re-add it.
@@ -24,6 +26,8 @@
 - No converter-time existence validation for the frontispiece; a missing file fails loudly in CI at pandoc/pdflatex.
 - Tests run from repo root: `python3 -m pytest tests/ -v`; expected `37 passed` (35 existing + 2 new).
 - Short imperative commit messages; push and live verification gated on explicit user confirmation.
+
+**Amendment (final review):** the PDF frontispiece moved out of `build/book-raw.md` into the tracked root file `frontispiece.tex`, passed via `--include-before-body=frontispiece.tex` in the `Build PDF` step. Pandoc emits it between `\maketitle` and `\tableofcontents`; the `\clearpage` pair in the file gives the frontispiece its own page: title page p1, frontispiece p2, table of contents p3. This supersedes Task 1 Step 3 (converter seeding, now `raw_book_lines: list[str] = []`), the raw-frontispiece test (replaced by `test_book_raw_has_no_frontispiece`), and Task 2 Step 4's page expectation.
 
 ---
 

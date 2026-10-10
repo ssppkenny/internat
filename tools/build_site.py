@@ -247,11 +247,7 @@ def build(
 
     summary_lines = ["# Summary", "", "[Интернат](README.md)", ""]
     book_lines: list[str] = []
-    raw_book_lines: list[str] = [
-        "\\begin{center}\n"
-        "\\includegraphics[width=\\linewidth,height=0.75\\textheight,keepaspectratio]{Photos/Omslag.jpg}\n"
-        "\\end{center}\n",
-    ]
+    raw_book_lines: list[str] = []
     chapter_count = 0
 
     parts = find_parts(outline_dir)
