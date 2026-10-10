@@ -19,8 +19,8 @@
   \end{center}
   ```
 - EPUB: add exactly `--epub-cover-image=Photos/Omslag.jpg \` to the CI `Build EPUB` pandoc command; no other workflow change.
-- `Photos/Omslag.jpg` (1024x765, orientation Undefined, 344248 B) is committed as part of Task 1.
-- Never modify `internat/outline/` or any other file under `Photos/`; do not stage the user's uncommitted outline edits (`internat/outline/1---------_----/12-----_------_-------.md`, `folder.txt`) or the other untracked Photos files (`46b8f8f8-...jpeg`, `Sputnik.jpg`, `im-invsample.svg`, `spezial.avif`).
+- `Photos/Omslag.jpg` (1024x765, orientation Undefined, 344248 B) is ALREADY tracked (author commit `10a59f9`); do not modify or re-add it.
+- Never modify `internat/outline/` or any other file under `Photos/`; do not stage the untracked Photos files (`46b8f8f8-...jpeg`, `Sputnik.jpg`, `im-invsample.svg`, `spezial.avif`); the working tree is otherwise clean.
 - No converter-time existence validation for the frontispiece; a missing file fails loudly in CI at pandoc/pdflatex.
 - Tests run from repo root: `python3 -m pytest tests/ -v`; expected `37 passed` (35 existing + 2 new).
 - Short imperative commit messages; push and live verification gated on explicit user confirmation.
@@ -32,7 +32,6 @@
 **Files:**
 - Modify: `tools/build_site.py` (README write at lines 296-305; `raw_book_lines` init at line 250)
 - Test: `tests/test_build_site.py` (append 2 tests)
-- Add: `Photos/Omslag.jpg` (untracked asset, commit here)
 
 **Interfaces:**
 - Consumes: existing `build(outline_dir, site_src, build_dir, photos_dir, version=None, last_changed=None)`; `raw_book_lines` accumulates raw markdown written to `build/book-raw.md` (line 307).
@@ -117,11 +116,11 @@ Expected: mdBook exits 0 and prints one `<img ... src="Photos/Omslag.jpg" ...>` 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add tools/build_site.py tests/test_build_site.py Photos/Omslag.jpg
+git add tools/build_site.py tests/test_build_site.py
 git commit -m "Add frontispiece to landing and PDF"
 ```
 
-Verify the commit contains exactly those three paths (`git show --stat HEAD`); the user's outline edits and other untracked Photos files must remain unstaged.
+Verify the commit contains exactly those two paths (`git show --stat HEAD`); the untracked Photos files must remain unstaged.
 
 ---
 
