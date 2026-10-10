@@ -386,3 +386,20 @@ def test_readme_has_update_date(outline: Path, tmp_path: Path) -> None:
     )
     readme = (tmp_path / "src" / "README.md").read_text(encoding="utf-8")
     assert "Версия 0.1\n\nОбновлено 5 октября 2026\n\n" in readme
+
+
+def test_readme_starts_with_frontispiece(outline: Path, tmp_path: Path) -> None:
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    readme = (tmp_path / "src" / "README.md").read_text(encoding="utf-8")
+    assert readme.startswith("![Обложка](Photos/Omslag.jpg)\n\n# Интернат\n\n")
+
+
+def test_book_raw_has_frontispiece_before_first_part(outline: Path, tmp_path: Path) -> None:
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    raw = (tmp_path / "build" / "book-raw.md").read_text(encoding="utf-8")
+    assert raw.startswith(
+        "\\begin{center}\n"
+        "\\includegraphics[width=\\linewidth,height=0.75\\textheight,keepaspectratio]{Photos/Omslag.jpg}\n"
+        "\\end{center}\n"
+    )
+    assert raw.index("\\includegraphics") < raw.index("# Часть 1")

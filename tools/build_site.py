@@ -247,7 +247,11 @@ def build(
 
     summary_lines = ["# Summary", "", "[Интернат](README.md)", ""]
     book_lines: list[str] = []
-    raw_book_lines: list[str] = []
+    raw_book_lines: list[str] = [
+        "\\begin{center}\n"
+        "\\includegraphics[width=\\linewidth,height=0.75\\textheight,keepaspectratio]{Photos/Omslag.jpg}\n"
+        "\\end{center}\n",
+    ]
     chapter_count = 0
 
     parts = find_parts(outline_dir)
@@ -294,6 +298,7 @@ def build(
 
     (site_src / "SUMMARY.md").write_text("\n".join(summary_lines), encoding="utf-8")
     (site_src / "README.md").write_text(
+        "![Обложка](Photos/Omslag.jpg)\n\n"
         "# Интернат\n\n"
         "**Сергей Михно**\n\n"
         f"Версия {version}\n\n"
