@@ -399,3 +399,47 @@ def test_book_raw_has_no_frontispiece(outline: Path, tmp_path: Path) -> None:
     raw = (tmp_path / "build" / "book-raw.md").read_text(encoding="utf-8")
     assert "\\includegraphics" not in raw
     assert raw.startswith("# Часть 1\n")
+
+
+def test_front_text_before_parts(outline: Path, tmp_path: Path) -> None:
+    write_chapter(outline / "0-Предисловие.md", "Предисловие", "Вступительное слово.")
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    summary = (tmp_path / "src" / "SUMMARY.md").read_text(encoding="utf-8")
+    assert summary.index("[Интернат](README.md)") < summary.index(
+        "- [Предисловие](predislovie.md)"
+    )
+    assert summary.index("- [Предисловие](predislovie.md)") < summary.index("# Часть 1")
+    site = (tmp_path / "src" / "predislovie.md").read_text(encoding="utf-8")
+    assert site.startswith("# Предисловие\n\n")
+    book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
+    assert book.index("# Предисловие") < book.index("# Часть 1")
+    raw = (tmp_path / "build" / "book-raw.md").read_text(encoding="utf-8")
+    assert raw.startswith("# Предисловие {-}\n")
+
+
+def test_front_texts_sorted_and_deduped(outline: Path, tmp_path: Path) -> None:
+    write_chapter(outline / "1-Предисловие.md", "Предисловие", "Второй текст.")
+    write_chapter(outline / "0-Предисловие.md", "Предисловие", "Первый текст.")
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    summary = (tmp_path / "src" / "SUMMARY.md").read_text(encoding="utf-8")
+    assert summary.index("- [Предисловие](predislovie.md)") < summary.index(
+        "- [Предисловие](predislovie-2.md)"
+    )
+    first = (tmp_path / "src" / "predislovie.md").read_text(encoding="utf-8")
+    second = (tmp_path / "src" / "predislovie-2.md").read_text(encoding="utf-8")
+    assert "Первый текст." in first
+    assert "Второй текст." in second
+
+
+def test_empty_front_text_skipped(
+    outline: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write_chapter(outline / "0-Пусто.md", "Пусто", "")
+    write_chapter(outline / "1-Предисловие.md", "Предисловие", "Вступительное слово.")
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    summary = (tmp_path / "src" / "SUMMARY.md").read_text(encoding="utf-8")
+    assert "Пусто" not in summary
+    assert not (tmp_path / "src" / "pusto.md").exists()
+    assert "- [Предисловие](predislovie.md)" in summary
+    captured = capsys.readouterr()
+    assert "0-Пусто.md: empty chapter body, skipping" in captured.out

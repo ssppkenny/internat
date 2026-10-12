@@ -223,6 +223,21 @@ def find_chapters(part_dir: Path) -> list[tuple[int, Path]]:
     return sorted(chapters)
 
 
+def find_front_texts(outline_dir: Path) -> list[tuple[int, Path]]:
+    return find_chapters(outline_dir)
+
+
+def prepare_body(
+    body: str, source_path: Path, photos_dir: Path, math_dir: Path
+) -> tuple[str, str, str]:
+    validate_images(body, source_path, photos_dir)
+    raw_body = convert_verse_emphasis(body)
+    verse_body = convert_verse_blocks(body)
+    epub_body = replace_math(verse_body, math_dir)
+    site_body = render_image_figures(rewrite_image_refs(verse_body))
+    return site_body, epub_body, raw_body
+
+
 def build(
     outline_dir: Path = OUTLINE_DIR,
     site_src: Path = SITE_SRC,
@@ -250,6 +265,37 @@ def build(
     raw_book_lines: list[str] = []
     chapter_count = 0
 
+    used_front_slugs: set[str] = set()
+    for _, front_path in find_front_texts(outline_dir):
+        front_title = parse_title(front_path)
+        body = strip_front_matter(front_path.read_text(encoding="utf-8"))
+        if not body:
+            print(f"warning: {front_path}: empty chapter body, skipping")
+            continue
+
+        site_body, epub_body, raw_body = prepare_body(
+            body, front_path, photos_dir, build_dir / "math"
+        )
+
+        slug = slugify(front_title)
+        candidate = slug
+        suffix = 2
+        while candidate in used_front_slugs:
+            candidate = f"{slug}-{suffix}"
+            suffix += 1
+        used_front_slugs.add(candidate)
+
+        (site_src / f"{candidate}.md").write_text(
+            f"# {front_title}\n\n{site_body}\n", encoding="utf-8"
+        )
+        summary_lines.append(f"- [{front_title}]({candidate}.md)")
+        book_lines += [f"# {front_title}", "", epub_body, ""]
+        raw_book_lines += [f"# {front_title} {{-}}", "", raw_body, ""]
+        chapter_count += 1
+
+    if used_front_slugs:
+        summary_lines.append("")
+
     parts = find_parts(outline_dir)
     for part_index, (_, part_dir) in enumerate(parts, start=1):
         part_title = parse_title(part_dir / "folder.txt")
@@ -268,10 +314,9 @@ def build(
                 print(f"warning: {chapter_path}: empty chapter body, skipping")
                 continue
 
-            validate_images(body, chapter_path, photos_dir)
-            raw_body = convert_verse_emphasis(body)
-            body = convert_verse_blocks(body)
-            epub_body = replace_math(body, build_dir / "math")
+            site_body, epub_body, raw_body = prepare_body(
+                body, chapter_path, photos_dir, build_dir / "math"
+            )
 
             slug = slugify(chapter_title)
             candidate = slug
@@ -282,7 +327,7 @@ def build(
             used_slugs.add(candidate)
 
             (site_src / part_slug / f"{candidate}.md").write_text(
-                f"# {chapter_title}\n\n{render_image_figures(rewrite_image_refs(body))}\n",
+                f"# {chapter_title}\n\n{site_body}\n",
                 encoding="utf-8",
             )
             summary_lines.append(f"- [{chapter_title}]({part_slug}/{candidate}.md)")
