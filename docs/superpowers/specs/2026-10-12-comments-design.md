@@ -121,3 +121,12 @@ the VPS service is independent and can keep running or be stopped.
 - Modify: `site/book.toml` (one line), `site/theme/custom.css` (small
   addition)
 - Untouched: `internat/`, `Photos/`, `.github/workflows/pages.yml`
+
+## Amendment 2026-10-12: auth and login timeout in the config
+
+Verified on the deployed VPS: email/password login requires
+`auth.enabled: true` and `auth.email.enabled: true`; the dashboard login
+additionally requires `login_timeout: 259200` — with the default `0` Artalk
+issues already-expired tokens (`exp == iat`), every authenticated API call
+returns 403 «Need login», and the SPA loops back to the login form.
+`docs/comments-deploy.md` and `docs/comments-install.sh` now write both keys.

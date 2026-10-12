@@ -52,6 +52,11 @@ port: $PORT
 app_key: $KEY
 locale: ru
 timezone: Europe/Moscow
+auth:
+  enabled: true
+  email:
+    enabled: true
+login_timeout: 259200
 db:
   type: sqlite
   file: ./data/artalk.db

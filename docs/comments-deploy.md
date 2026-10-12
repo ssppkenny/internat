@@ -40,6 +40,11 @@ port: 23366
 app_key: $KEY
 locale: ru
 timezone: Europe/Moscow
+auth:
+  enabled: true
+  email:
+    enabled: true
+login_timeout: 259200
 db:
   type: sqlite
   file: ./data/artalk.db
@@ -54,6 +59,10 @@ log:
 EOF
 sudo chown artalk:artalk /var/lib/artalk/artalk.yml
 ```
+
+`auth.enabled` + `auth.email.enabled` are required for email/password login.
+`login_timeout: 259200` (3 days) is required too — with the default `0` the
+dashboard issues already-expired tokens and the login page loops forever.
 
 ## 4. systemd service
 
