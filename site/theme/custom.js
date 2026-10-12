@@ -27,11 +27,12 @@
         pageTitle: document.title,
         locale: "ru"
       });
-      var darkThemes = ["coal", "navy", "ayu"];
+      function isDark() {
+        var classList = document.documentElement.classList;
+        return classList.contains("coal") || classList.contains("navy") || classList.contains("ayu");
+      }
       function apply() {
-        artalk.setDarkMode(
-          darkThemes.indexOf(document.documentElement.className) !== -1
-        );
+        artalk.setDarkMode(isDark());
       }
       apply();
       new MutationObserver(apply).observe(document.documentElement, {
