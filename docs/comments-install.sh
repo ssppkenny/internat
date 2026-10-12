@@ -111,12 +111,22 @@ fi
 
 step "nginx vhost"
 command -v nginx >/dev/null || { apt-get update -qq && apt-get install -y -qq nginx; }
-if [[ -d /etc/nginx/sites-enabled ]]; then
+if grep -qs 'sites-enabled' /etc/nginx/nginx.conf; then
   VHOST_DIR=/etc/nginx/sites-available
   ENABLE_LINK=/etc/nginx/sites-enabled/$DOMAIN
 else
   VHOST_DIR=/etc/nginx/conf.d
   ENABLE_LINK=""
+fi
+if [[ ! -f "$VHOST_DIR/$DOMAIN" ]]; then
+  if [[ "$VHOST_DIR" != /etc/nginx/sites-available && -f "/etc/nginx/sites-available/$DOMAIN" ]]; then
+    mv "/etc/nginx/sites-available/$DOMAIN" "$VHOST_DIR/$DOMAIN"
+    rm -f "/etc/nginx/sites-enabled/$DOMAIN"
+    echo "moved vhost from sites-available to $VHOST_DIR (sites-enabled is not included by nginx.conf)"
+  elif [[ "$VHOST_DIR" != /etc/nginx/conf.d && -f "/etc/nginx/conf.d/$DOMAIN" ]]; then
+    mv "/etc/nginx/conf.d/$DOMAIN" "$VHOST_DIR/$DOMAIN"
+    echo "moved vhost from conf.d to $VHOST_DIR"
+  fi
 fi
 if [[ -f "$VHOST_DIR/$DOMAIN" ]]; then
   echo "vhost exists — keeping it (TLS edits preserved)"
@@ -141,6 +151,10 @@ if [[ -n "$ENABLE_LINK" ]]; then
 fi
 nginx -t
 systemctl reload nginx
+if ! nginx -T 2>/dev/null | grep -q "configuration file .*$DOMAIN"; then
+  echo "error: nginx did not load $VHOST_DIR/$DOMAIN — check that /etc/nginx/nginx.conf includes it" >&2
+  exit 1
+fi
 
 step "TLS certificate"
 if [[ ! -d "/etc/letsencrypt/live/$DOMAIN" ]] || ! grep -q 'ssl_certificate' "$VHOST_DIR/$DOMAIN"; then
