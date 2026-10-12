@@ -144,7 +144,13 @@ systemctl reload nginx
 
 step "TLS certificate"
 if [[ ! -d "/etc/letsencrypt/live/$DOMAIN" ]] || ! grep -q 'ssl_certificate' "$VHOST_DIR/$DOMAIN"; then
-  command -v certbot >/dev/null || { apt-get update -qq && apt-get install -y -qq certbot python3-certbot-nginx; }
+  if ! command -v certbot >/dev/null 2>&1; then
+    apt-get update -qq
+    apt-get install -y -qq certbot python3-certbot-nginx
+  elif ! dpkg -s python3-certbot-nginx >/dev/null 2>&1; then
+    apt-get update -qq
+    apt-get install -y -qq python3-certbot-nginx
+  fi
   if [[ -z "$CERT_EMAIL" ]]; then
     read -r -p "Email for Let's Encrypt notices: " CERT_EMAIL || true
   fi
