@@ -443,3 +443,10 @@ def test_empty_front_text_skipped(
     assert "- [Предисловие](predislovie.md)" in summary
     captured = capsys.readouterr()
     assert "0-Пусто.md: empty chapter body, skipping" in captured.out
+
+
+def test_book_toml_wires_comments_script() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    toml = (repo_root / "site" / "book.toml").read_text(encoding="utf-8")
+    assert 'additional-js = ["theme/custom.js"]' in toml
+    assert (repo_root / "site" / "theme" / "custom.js").is_file()
