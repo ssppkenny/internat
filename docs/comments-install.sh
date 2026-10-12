@@ -54,6 +54,7 @@ locale: ru
 timezone: Europe/Moscow
 auth:
   enabled: true
+  anonymous: true
   email:
     enabled: true
 login_timeout: 259200

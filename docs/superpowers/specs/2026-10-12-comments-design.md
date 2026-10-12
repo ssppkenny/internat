@@ -130,3 +130,6 @@ additionally requires `login_timeout: 259200` — with the default `0` Artalk
 issues already-expired tokens (`exp == iat`), every authenticated API call
 returns 403 «Need login», and the SPA loops back to the login form.
 `docs/comments-deploy.md` and `docs/comments-install.sh` now write both keys.
+`auth.anonymous: true` was added too: without it the widget requires
+registration; with it readers post with just a nickname (verified locally on
+v2.10.0 — the providers endpoint reports `anonymous: true`).

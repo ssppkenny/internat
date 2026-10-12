@@ -42,6 +42,7 @@ locale: ru
 timezone: Europe/Moscow
 auth:
   enabled: true
+  anonymous: true
   email:
     enabled: true
 login_timeout: 259200
@@ -60,7 +61,8 @@ EOF
 sudo chown artalk:artalk /var/lib/artalk/artalk.yml
 ```
 
-`auth.enabled` + `auth.email.enabled` are required for email/password login.
+`auth.enabled` + `auth.email.enabled` are required for email/password login;
+`auth.anonymous: true` lets readers comment with just a nickname (no account).
 `login_timeout: 259200` (3 days) is required too — with the default `0` the
 dashboard issues already-expired tokens and the login page loops forever.
 
