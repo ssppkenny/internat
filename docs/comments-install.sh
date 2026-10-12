@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+# One-shot installer for the Artalk comment server (comments.spkenny.ru).
+# Usage: sudo bash comments-install.sh
+# Safe to re-run: existing config, database and admin account are kept.
+set -euo pipefail
+
+DOMAIN="comments.spkenny.ru"
+PORT="23366"
+ARTALK_VERSION="v2.10.0"
+ARTALK_SHA256="8ef3dcb322207ea76038a32d8e137604eba9313259c3423683d80efbcf18aed1"
+ARTALK_USER="artalk"
+ARTALK_HOME="/var/lib/artalk"
+BINARY="/usr/local/bin/artalk"
+SITE_URL="https://ssppkenny.github.io"
+SITE_NAME="Интернат"
+
+if [[ $EUID -ne 0 ]]; then
+  echo "error: run as root (sudo bash $0)" >&2
+  exit 1
+fi
+
+step() { echo; echo "=== $* ==="; }
+
+step "Artalk binary ($ARTALK_VERSION)"
+if [[ -x "$BINARY" ]] && "$BINARY" --version 2>/dev/null | grep -q "$ARTALK_VERSION"; then
+  echo "already installed: $("$BINARY" --version)"
+else
+  cd /tmp
+  curl -fsSLO "https://github.com/ArtalkJS/Artalk/releases/download/${ARTALK_VERSION}/artalk_${ARTALK_VERSION}_linux_amd64.tar.gz"
+  echo "${ARTALK_SHA256}  artalk_${ARTALK_VERSION}_linux_amd64.tar.gz" | sha256sum -c -
+  tar -xzf "artalk_${ARTALK_VERSION}_linux_amd64.tar.gz"
+  install -m 0755 "artalk_${ARTALK_VERSION}_linux_amd64/artalk" "$BINARY"
+  "$BINARY" --version
+fi
+
+step "Service user and directories"
+if ! id -u "$ARTALK_USER" >/dev/null 2>&1; then
+  useradd --system --home "$ARTALK_HOME" --shell /usr/sbin/nologin "$ARTALK_USER"
+fi
+mkdir -p "$ARTALK_HOME/data"
+chown -R "$ARTALK_USER:$ARTALK_USER" "$ARTALK_HOME"
+
+step "Configuration $ARTALK_HOME/artalk.yml"
+if [[ -f "$ARTALK_HOME/artalk.yml" ]]; then
+  echo "exists — keeping it (app_key preserved)"
+else
+  command -v openssl >/dev/null || { apt-get update -qq && apt-get install -y -qq openssl; }
+  KEY="$(openssl rand -hex 16)"
+  cat > "$ARTALK_HOME/artalk.yml" <<EOF
+host: 127.0.0.1
+port: $PORT
+app_key: $KEY
+locale: ru
+timezone: Europe/Moscow
+db:
+  type: sqlite
+  file: ./data/artalk.db
+site_default: $SITE_NAME
+trusted_domains:
+  - $SITE_URL
+http:
+  proxy_header: X-Forwarded-For
+log:
+  enabled: true
+  filename: ./data/artalk.log
+EOF
+  chown "$ARTALK_USER:$ARTALK_USER" "$ARTALK_HOME/artalk.yml"
+fi
+
+step "systemd service"
+cat > /etc/systemd/system/artalk.service <<'EOF'
+[Unit]
+Description=Artalk comment server
+After=network.target
+
+[Service]
+User=artalk
+WorkingDirectory=/var/lib/artalk
+ExecStart=/usr/local/bin/artalk server
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable --now artalk
+systemctl restart artalk
+code=""
+for _ in $(seq 1 15); do
+  code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/" || true)"
+  [[ "$code" == "302" || "$code" == "200" ]] && break
+  sleep 1
+done
+echo "local HTTP status: ${code:-none}"
+
+step "Admin account"
+read -r -p "Admin email (empty = skip): " ADMIN_EMAIL || true
+CERT_EMAIL=""
+if [[ -n "${ADMIN_EMAIL:-}" ]]; then
+  read -r -p "Admin name [admin]: " ADMIN_NAME || true
+  ADMIN_NAME="${ADMIN_NAME:-admin}"
+  read -r -s -p "Admin password: " ADMIN_PASSWORD || true
+  echo
+  sudo -u "$ARTALK_USER" "$BINARY" admin -w "$ARTALK_HOME" \
+    --name "$ADMIN_NAME" --email "$ADMIN_EMAIL" --password "$ADMIN_PASSWORD" \
+    || echo "note: admin may already exist (see error above)"
+  unset ADMIN_PASSWORD
+  CERT_EMAIL="$ADMIN_EMAIL"
+fi
+
+step "nginx vhost"
+command -v nginx >/dev/null || { apt-get update -qq && apt-get install -y -qq nginx; }
+if [[ -d /etc/nginx/sites-enabled ]]; then
+  VHOST_DIR=/etc/nginx/sites-available
+  ENABLE_LINK=/etc/nginx/sites-enabled/$DOMAIN
+else
+  VHOST_DIR=/etc/nginx/conf.d
+  ENABLE_LINK=""
+fi
+cat > "$VHOST_DIR/$DOMAIN" <<'EOF'
+server {
+    listen 80;
+    server_name comments.spkenny.ru;
+
+    location / {
+        proxy_pass http://127.0.0.1:23366;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+EOF
+if [[ -n "$ENABLE_LINK" ]]; then
+  ln -sfn "$VHOST_DIR/$DOMAIN" "$ENABLE_LINK"
+fi
+nginx -t
+systemctl reload nginx
+
+step "TLS certificate"
+if [[ -d "/etc/letsencrypt/live/$DOMAIN" ]]; then
+  echo "certificate already exists"
+else
+  command -v certbot >/dev/null || { apt-get update -qq && apt-get install -y -qq certbot python3-certbot-nginx; }
+  if [[ -z "$CERT_EMAIL" ]]; then
+    read -r -p "Email for Let's Encrypt notices: " CERT_EMAIL || true
+  fi
+  if [[ -z "${CERT_EMAIL:-}" ]]; then
+    echo "error: an email is required for Let's Encrypt — re-run and provide one" >&2
+    exit 1
+  fi
+  certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --redirect -m "$CERT_EMAIL"
+fi
+
+step "Verify"
+curl -sS -o /dev/null -w '%{url_effective} -> %{http_code}\n' "https://$DOMAIN/" || true
+echo
+echo "Done. Open https://$DOMAIN and log in with the admin account."
+echo "Captcha, notifications and social login can be enabled later in the dashboard."
