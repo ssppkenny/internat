@@ -22,8 +22,8 @@ fi
 step() { echo; echo "=== $* ==="; }
 
 step "Artalk binary ($ARTALK_VERSION)"
-if [[ -x "$BINARY" ]] && "$BINARY" --version 2>/dev/null | grep -q "$ARTALK_VERSION"; then
-  echo "already installed: $("$BINARY" --version)"
+if [[ -x "$BINARY" ]] && "$BINARY" --version >/dev/null 2>&1; then
+  echo "already installed: $("$BINARY" --version) (keeping; delete $BINARY to force reinstall)"
 else
   cd /tmp
   curl -fsSLO "https://github.com/ArtalkJS/Artalk/releases/download/${ARTALK_VERSION}/artalk_${ARTALK_VERSION}_linux_amd64.tar.gz"
@@ -103,7 +103,7 @@ if [[ -n "${ADMIN_EMAIL:-}" ]]; then
   read -r -s -p "Admin password: " ADMIN_PASSWORD || true
   echo
   sudo -u "$ARTALK_USER" "$BINARY" admin -w "$ARTALK_HOME" \
-    --name "$ADMIN_NAME" --email "$ADMIN_EMAIL" --password "$ADMIN_PASSWORD" \
+    --name "$ADMIN_NAME" --email "$ADMIN_EMAIL" --password "${ADMIN_PASSWORD:-}" \
     || echo "note: admin may already exist (see error above)"
   unset ADMIN_PASSWORD
   CERT_EMAIL="$ADMIN_EMAIL"
@@ -118,7 +118,10 @@ else
   VHOST_DIR=/etc/nginx/conf.d
   ENABLE_LINK=""
 fi
-cat > "$VHOST_DIR/$DOMAIN" <<'EOF'
+if [[ -f "$VHOST_DIR/$DOMAIN" ]]; then
+  echo "vhost exists — keeping it (TLS edits preserved)"
+else
+  cat > "$VHOST_DIR/$DOMAIN" <<'EOF'
 server {
     listen 80;
     server_name comments.spkenny.ru;
@@ -132,6 +135,7 @@ server {
     }
 }
 EOF
+fi
 if [[ -n "$ENABLE_LINK" ]]; then
   ln -sfn "$VHOST_DIR/$DOMAIN" "$ENABLE_LINK"
 fi
@@ -139,9 +143,7 @@ nginx -t
 systemctl reload nginx
 
 step "TLS certificate"
-if [[ -d "/etc/letsencrypt/live/$DOMAIN" ]]; then
-  echo "certificate already exists"
-else
+if [[ ! -d "/etc/letsencrypt/live/$DOMAIN" ]] || ! grep -q 'ssl_certificate' "$VHOST_DIR/$DOMAIN"; then
   command -v certbot >/dev/null || { apt-get update -qq && apt-get install -y -qq certbot python3-certbot-nginx; }
   if [[ -z "$CERT_EMAIL" ]]; then
     read -r -p "Email for Let's Encrypt notices: " CERT_EMAIL || true
@@ -151,6 +153,8 @@ else
     exit 1
   fi
   certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --redirect -m "$CERT_EMAIL"
+else
+  echo "certificate and TLS vhost already present — keeping"
 fi
 
 step "Verify"
