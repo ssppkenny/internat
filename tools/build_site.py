@@ -33,6 +33,7 @@ IMG_RE = re.compile(r"\]\((?:\./)?Photos/([^)\s]+)\)")
 VERSE_RE = re.compile(r"^\\begin\{verse\}\n(.*?)\n\\end\{verse\}$", re.M | re.S)
 STANDALONE_IMAGE_RE = re.compile(r"^!\[([^\]]*)\]\((\.\./Photos/[^)\s]+)\)$", re.M)
 MATH_REF_PREFIX = "build/math"
+MATH_DPI = 600
 DISPLAY_MATH_RE = re.compile(r"\$\$(.+?)\$\$", re.S)
 INLINE_MATH_RE = re.compile(r"(?<!\$)\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\$)")
 
@@ -147,9 +148,9 @@ def render_image_figures(body: str) -> str:
     return STANDALONE_IMAGE_RE.sub(render, body)
 
 
-def render_math_svg(expr: str, display: bool, out_dir: Path) -> Path:
+def render_math_png(expr: str, display: bool, out_dir: Path) -> Path:
     digest = hashlib.sha1(f"{int(display)}:{expr}".encode("utf-8")).hexdigest()[:12]
-    out_path = out_dir / f"eq-{digest}.svg"
+    out_path = out_dir / f"eq-{digest}.png"
     if out_path.is_file():
         return out_path
 
@@ -167,12 +168,16 @@ def render_math_svg(expr: str, display: bool, out_dir: Path) -> Path:
         commands = [
             ["latex", "-interaction=nonstopmode", "-halt-on-error", "formula.tex"],
             [
-                "dvisvgm",
-                "--no-fonts",
-                "--exact-bbox",
-                "formula.dvi",
+                "dvipng",
+                "-T",
+                "tight",
+                "-D",
+                str(MATH_DPI),
+                "-bg",
+                "Transparent",
                 "-o",
                 str(out_path.resolve()),
+                "formula.dvi",
             ],
         ]
         for command in commands:
@@ -188,18 +193,27 @@ def render_math_svg(expr: str, display: bool, out_dir: Path) -> Path:
                 tail = "\n".join((result.stdout + result.stderr).splitlines()[-5:])
                 raise ValueError(f"math render failed for {expr!r}: {tail}")
     if not out_path.is_file():
-        raise ValueError(f"math render failed for {expr!r}: no SVG produced")
+        raise ValueError(f"math render failed for {expr!r}: no PNG produced")
     return out_path
+
+
+def _png_width(path: Path) -> int:
+    data = path.read_bytes()[:24]
+    if data[:8] != b"\x89PNG\r\n\x1a\n" or data[12:16] != b"IHDR":
+        raise ValueError(f"invalid PNG: {path}")
+    return int.from_bytes(data[16:20], "big")
 
 
 def replace_math(body: str, math_dir: Path) -> str:
     def render_display(match: re.Match[str]) -> str:
-        path = render_math_svg(match.group(1).strip(), True, math_dir)
-        return f"![]({MATH_REF_PREFIX}/{path.name})"
+        path = render_math_png(match.group(1).strip(), True, math_dir)
+        width = round(_png_width(path) * 72 / MATH_DPI, 2)
+        return f"![]({MATH_REF_PREFIX}/{path.name}){{width={width}pt}}"
 
     def render_inline(match: re.Match[str]) -> str:
-        path = render_math_svg(match.group(1), False, math_dir)
-        return f"![]({MATH_REF_PREFIX}/{path.name})"
+        path = render_math_png(match.group(1), False, math_dir)
+        width = round(_png_width(path) * 72 / MATH_DPI, 2)
+        return f"![]({MATH_REF_PREFIX}/{path.name}){{width={width}pt}}"
 
     body = DISPLAY_MATH_RE.sub(render_display, body)
     return INLINE_MATH_RE.sub(render_inline, body)

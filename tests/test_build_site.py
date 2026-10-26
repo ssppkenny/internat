@@ -1,6 +1,8 @@
 import shutil
+import struct
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -24,6 +26,14 @@ def write_chapter(path: Path, title: str, body: str) -> None:
         f"title:          {title}\nID:             1\ntype:           md\n"
         f"compile:        2\ncharCount:      {len(body)}\n\n\n{body}\n",
         encoding="utf-8",
+    )
+
+
+def _write_png(path: Path, width: int) -> None:
+    ihdr = struct.pack(">IIBBBBB", width, 40, 8, 6, 0, 0, 0)
+    chunk = struct.pack(">I", len(ihdr)) + b"IHDR" + ihdr + struct.pack(">I", 0)
+    path.write_bytes(
+        b"\x89PNG\r\n\x1a\n" + chunk + struct.pack(">I", 0) + b"IEND" + struct.pack(">I", 0)
     )
 
 
@@ -244,7 +254,7 @@ def test_book_raw_keeps_verse_and_photo_refs(outline: Path, tmp_path: Path) -> N
     assert "> Строка." in book
 
 
-def test_display_math_becomes_svg_ref(
+def test_display_math_becomes_png_ref(
     outline: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     calls: list[tuple[str, bool]] = []
@@ -252,11 +262,11 @@ def test_display_math_becomes_svg_ref(
     def fake_render(expr: str, display: bool, out_dir: Path) -> Path:
         calls.append((expr, display))
         out_dir.mkdir(parents=True, exist_ok=True)
-        path = out_dir / "eq-stub.svg"
-        path.write_text("<svg/>", encoding="utf-8")
+        path = out_dir / "eq-stub.png"
+        _write_png(path, 1206)
         return path
 
-    monkeypatch.setattr(build_site, "render_math_svg", fake_render)
+    monkeypatch.setattr(build_site, "render_math_png", fake_render)
     write_chapter(
         outline / "0-Часть 1" / "0-Поступление.md",
         "Поступление",
@@ -264,7 +274,7 @@ def test_display_math_becomes_svg_ref(
     )
     build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
     book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
-    assert "![](build/math/eq-stub.svg)" in book
+    assert "![](build/math/eq-stub.png){width=144.72pt}" in book
     assert "$" not in book
     assert calls == [("x^2", True)]
     raw = (tmp_path / "build" / "book-raw.md").read_text(encoding="utf-8")
@@ -273,7 +283,7 @@ def test_display_math_becomes_svg_ref(
     assert "$$ x^2 $$" in site
 
 
-def test_inline_math_becomes_svg_ref(
+def test_inline_math_becomes_png_ref(
     outline: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     calls: list[tuple[str, bool]] = []
@@ -281,11 +291,11 @@ def test_inline_math_becomes_svg_ref(
     def fake_render(expr: str, display: bool, out_dir: Path) -> Path:
         calls.append((expr, display))
         out_dir.mkdir(parents=True, exist_ok=True)
-        path = out_dir / "eq-inline.svg"
-        path.write_text("<svg/>", encoding="utf-8")
+        path = out_dir / "eq-inline.png"
+        _write_png(path, 600)
         return path
 
-    monkeypatch.setattr(build_site, "render_math_svg", fake_render)
+    monkeypatch.setattr(build_site, "render_math_png", fake_render)
     write_chapter(
         outline / "0-Часть 1" / "0-Поступление.md",
         "Поступление",
@@ -293,7 +303,7 @@ def test_inline_math_becomes_svg_ref(
     )
     build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
     book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
-    assert "Текст ![](build/math/eq-inline.svg) ещё." in book
+    assert "Текст ![](build/math/eq-inline.png){width=72.0pt} ещё." in book
     assert calls == [("x^2", False)]
     raw = (tmp_path / "build" / "book-raw.md").read_text(encoding="utf-8")
     assert "Текст $x^2$ ещё." in raw
@@ -304,10 +314,13 @@ def test_inline_math_becomes_svg_ref(
 def test_currency_amounts_are_not_math(
     outline: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    calls: list[str] = []
+
     def boom(expr: str, display: bool, out_dir: Path) -> Path:
+        calls.append(expr)
         raise AssertionError(f"renderer called for {expr!r}")
 
-    monkeypatch.setattr(build_site, "render_math_svg", boom)
+    monkeypatch.setattr(build_site, "render_math_png", boom)
     write_chapter(
         outline / "0-Часть 1" / "0-Поступление.md",
         "Поступление",
@@ -316,6 +329,7 @@ def test_currency_amounts_are_not_math(
     build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
     book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
     assert "Стоит $5 и $7." in book
+    assert calls == []
 
 
 def test_math_render_failure_fails_build(
@@ -324,7 +338,7 @@ def test_math_render_failure_fails_build(
     def fail(expr: str, display: bool, out_dir: Path) -> Path:
         raise ValueError(f"math render failed for {expr!r}: boom")
 
-    monkeypatch.setattr(build_site, "render_math_svg", fail)
+    monkeypatch.setattr(build_site, "render_math_png", fail)
     write_chapter(
         outline / "0-Часть 1" / "0-Поступление.md",
         "Поступление",
@@ -334,24 +348,43 @@ def test_math_render_failure_fails_build(
         build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
 
 
+def test_png_width_rejects_corrupt_file(tmp_path: Path) -> None:
+    bad = tmp_path / "bad.png"
+    bad.write_bytes(b"not a png")
+    with pytest.raises(ValueError, match="invalid PNG"):
+        build_site._png_width(bad)
+
+
+def test_render_reports_missing_dvipng(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
+        if command[0] == "dvipng":
+            raise FileNotFoundError(command[0])
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(build_site.subprocess, "run", fake_run)
+    with pytest.raises(ValueError, match="dvipng not found"):
+        build_site.render_math_png("x", True, tmp_path)
+
+
 @pytest.mark.skipif(
-    shutil.which("latex") is None or shutil.which("dvisvgm") is None,
-    reason="latex or dvisvgm not installed",
+    shutil.which("latex") is None or shutil.which("dvipng") is None,
+    reason="latex or dvipng not installed",
 )
-def test_real_math_render_produces_svg(outline: Path, tmp_path: Path) -> None:
+def test_real_math_render_produces_png(outline: Path, tmp_path: Path) -> None:
     write_chapter(
         outline / "0-Часть 1" / "0-Поступление.md",
         "Поступление",
         "$$ \\frac{1}{\\sqrt{n}} $$",
     )
     build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
-    svgs = sorted((tmp_path / "build" / "math").glob("*.svg"))
-    assert len(svgs) == 1
-    text = svgs[0].read_text(encoding="utf-8")
-    assert "<svg" in text
-    assert "<path" in text
+    pngs = sorted((tmp_path / "build" / "math").glob("*.png"))
+    assert len(pngs) == 1
+    assert pngs[0].read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+    assert build_site._png_width(pngs[0]) > 0
     book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
-    assert f"![](build/math/{svgs[0].name})" in book
+    assert f"![](build/math/{pngs[0].name}){{width=" in book
 
 
 def test_verse_emphasis_converted_for_pdf(outline: Path, tmp_path: Path) -> None:
