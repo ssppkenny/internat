@@ -340,6 +340,13 @@ def build(
                 suffix += 1
             used_slugs.add(candidate)
 
+            if chapter_title == "День рождения интерната":
+                site_body = site_body.replace(
+                    "Полный текст — в приложении.",
+                    "[Полный текст — в приложении]"
+                    "(../part6/prilozhenie-kak-neprosto-pro-fmsh-18.md)",
+                )
+
             (site_src / part_slug / f"{candidate}.md").write_text(
                 f"# {chapter_title}\n\n{site_body}\n",
                 encoding="utf-8",
@@ -360,7 +367,12 @@ def build(
         f"Обновлено {format_date_ru(last_changed)}\n\n"
         "Воспоминания о годах учёбы в ФМШ №18 при МГУ.\n\n"
         "- [Скачать PDF](internat.pdf)\n"
-        "- [Скачать EPUB](internat.epub)\n",
+        "- [Скачать EPUB](internat.epub)\n\n"
+        "---\n\n"
+        "*Все фотографии и кадры из видео публикуются как часть воспоминаний. "
+        "Если вы изображены на снимке и не хотите, чтобы он был опубликован, "
+        "напишите мне в комментариях — [comments.spkenny.ru](https://comments.spkenny.ru). "
+        "Я уберу фотографию по первой просьбе.*\n",
         encoding="utf-8",
     )
     (build_dir / "book.md").write_text("\n".join(book_lines), encoding="utf-8")
