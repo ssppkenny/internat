@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import html
+import json
 import re
 import shutil
 import subprocess
@@ -19,6 +20,9 @@ SITE_SRC = REPO_ROOT / "site" / "src"
 BUILD_DIR = REPO_ROOT / "build"
 PHOTOS_DIR = REPO_ROOT / "Photos"
 VERSION_FILE = REPO_ROOT / "VERSION"
+UPDATES_FILE = REPO_ROOT / "site" / "updates.json"
+UPDATES_PAGE = "chto-novogo.md"
+UPDATES_LIMIT = 10
 
 TRANSLIT = {
     "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
@@ -94,6 +98,62 @@ MONTHS_RU = (
 
 def format_date_ru(d: date) -> str:
     return f"{d.day} {MONTHS_RU[d.month - 1]} {d.year}"
+
+
+def load_updates(path: Path, limit: int = UPDATES_LIMIT) -> list[dict[str, str]]:
+    if not path.is_file():
+        return []
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, list):
+        raise ValueError(f"{path}: expected a JSON list")
+    updates: list[dict[str, str]] = []
+    for item in data:
+        if not isinstance(item, dict):
+            raise ValueError(f"{path}: each update must be an object")
+        missing = [key for key in ("date", "chapter", "note") if key not in item]
+        if missing:
+            raise ValueError(f"{path}: update is missing {', '.join(missing)}")
+        date.fromisoformat(item["date"])
+        updates.append(
+            {
+                "date": str(item["date"]),
+                "chapter": str(item["chapter"]),
+                "note": str(item["note"]),
+            }
+        )
+    updates.sort(key=lambda item: item["date"], reverse=True)
+    return updates[:limit]
+
+
+def render_updates_page(
+    updates: list[dict[str, str]], chapter_links: dict[str, str]
+) -> str:
+    lines = [
+        "# Что нового",
+        "",
+        "Последние обновления книги — чтобы не перечитывать всё заново.",
+        "",
+    ]
+    if not updates:
+        lines.append("Пока обновлений нет.")
+        return "\n".join(lines) + "\n"
+
+    current_date = ""
+    for item in updates:
+        if item["date"] != current_date:
+            current_date = item["date"]
+            if lines[-1] != "":
+                lines.append("")
+            lines += [
+                f"## {format_date_ru(date.fromisoformat(current_date))}",
+                "",
+            ]
+        link = chapter_links.get(item["chapter"])
+        if link:
+            lines.append(f"- **[{item['chapter']}]({link})** — {item['note']}")
+        else:
+            lines.append(f"- **{item['chapter']}** — {item['note']}")
+    return "\n".join(lines) + "\n"
 
 
 def validate_images(body: str, chapter_path: Path, photos_dir: Path) -> None:
@@ -257,6 +317,7 @@ def build(
     site_src: Path = SITE_SRC,
     build_dir: Path = BUILD_DIR,
     photos_dir: Path = PHOTOS_DIR,
+    updates_file: Path = UPDATES_FILE,
     version: str | None = None,
     last_changed: date | None = None,
 ) -> None:
@@ -278,6 +339,7 @@ def build(
     book_lines: list[str] = []
     raw_book_lines: list[str] = []
     chapter_count = 0
+    chapter_links: dict[str, str] = {}
 
     used_front_slugs: set[str] = set()
     for _, front_path in find_front_texts(outline_dir):
@@ -303,6 +365,7 @@ def build(
             f"# {front_title}\n\n{site_body}\n", encoding="utf-8"
         )
         summary_lines.append(f"- [{front_title}]({candidate}.md)")
+        chapter_links[front_title] = f"{candidate}.md"
         book_lines += [f"# {front_title}", "", epub_body, ""]
         raw_book_lines += [f"# {front_title} {{-}}", "", raw_body, ""]
         chapter_count += 1
@@ -352,11 +415,18 @@ def build(
                 encoding="utf-8",
             )
             summary_lines.append(f"- [{chapter_title}]({part_slug}/{candidate}.md)")
+            chapter_links[chapter_title] = f"{part_slug}/{candidate}.md"
             book_lines += [f"## {chapter_title}", "", epub_body, ""]
             raw_book_lines += [f"## {chapter_title}", "", raw_body, ""]
             chapter_count += 1
 
         summary_lines.append("")
+
+    updates = load_updates(updates_file)
+    (site_src / UPDATES_PAGE).write_text(
+        render_updates_page(updates, chapter_links), encoding="utf-8"
+    )
+    summary_lines.insert(4, f"- [Что нового]({UPDATES_PAGE})")
 
     (site_src / "SUMMARY.md").write_text("\n".join(summary_lines), encoding="utf-8")
     (site_src / "README.md").write_text(

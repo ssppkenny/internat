@@ -1,3 +1,4 @@
+import json
 import shutil
 import struct
 from datetime import date
@@ -483,3 +484,33 @@ def test_book_toml_wires_comments_script() -> None:
     toml = (repo_root / "site" / "book.toml").read_text(encoding="utf-8")
     assert 'additional-js = ["theme/custom.js"]' in toml
     assert (repo_root / "site" / "theme" / "custom.js").is_file()
+
+
+def test_updates_page_shows_latest_ten(outline: Path, tmp_path: Path) -> None:
+    updates_file = tmp_path / "updates.json"
+    updates = [
+        {
+            "date": f"2026-10-{day:02d}",
+            "chapter": "Учеба",
+            "note": f"Изменение {day}",
+        }
+        for day in range(1, 13)
+    ]
+    updates_file.write_text(json.dumps(updates, ensure_ascii=False), encoding="utf-8")
+
+    build(
+        outline,
+        tmp_path / "src",
+        tmp_path / "build",
+        photos_dir=tmp_path / "Photos",
+        updates_file=updates_file,
+    )
+
+    summary = (tmp_path / "src" / "SUMMARY.md").read_text(encoding="utf-8")
+    page = (tmp_path / "src" / "chto-novogo.md").read_text(encoding="utf-8")
+    assert "- [Что нового](chto-novogo.md)" in summary
+    assert page.startswith("# Что нового\n")
+    assert page.count("- **[Учеба](part2/ucheba.md)**") == 10
+    assert "Изменение 12" in page
+    assert "Изменение 3" in page
+    assert "Изменение 2" not in page
