@@ -486,7 +486,7 @@ def test_book_toml_wires_comments_script() -> None:
     assert (repo_root / "site" / "theme" / "custom.js").is_file()
 
 
-def test_updates_page_shows_latest_ten(outline: Path, tmp_path: Path) -> None:
+def test_updates_page_shows_full_history(outline: Path, tmp_path: Path) -> None:
     updates_file = tmp_path / "updates.json"
     updates = [
         {
@@ -510,7 +510,7 @@ def test_updates_page_shows_latest_ten(outline: Path, tmp_path: Path) -> None:
     page = (tmp_path / "src" / "chto-novogo.md").read_text(encoding="utf-8")
     assert "- [Что нового](chto-novogo.md)" in summary
     assert page.startswith("# Что нового\n")
-    assert page.count("- **[Учеба](part2/ucheba.md)**") == 10
+    assert page.count("- **[Учеба](part2/ucheba.md)**") == 12
     assert "Изменение 12" in page
-    assert "Изменение 3" in page
-    assert "Изменение 2" not in page
+    assert "Изменение 2" in page
+    assert "Изменение 1" in page

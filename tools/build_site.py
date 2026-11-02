@@ -22,7 +22,6 @@ PHOTOS_DIR = REPO_ROOT / "Photos"
 VERSION_FILE = REPO_ROOT / "VERSION"
 UPDATES_FILE = REPO_ROOT / "site" / "updates.json"
 UPDATES_PAGE = "chto-novogo.md"
-UPDATES_LIMIT = 10
 
 TRANSLIT = {
     "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
@@ -100,7 +99,7 @@ def format_date_ru(d: date) -> str:
     return f"{d.day} {MONTHS_RU[d.month - 1]} {d.year}"
 
 
-def load_updates(path: Path, limit: int = UPDATES_LIMIT) -> list[dict[str, str]]:
+def load_updates(path: Path) -> list[dict[str, str]]:
     if not path.is_file():
         return []
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -122,7 +121,7 @@ def load_updates(path: Path, limit: int = UPDATES_LIMIT) -> list[dict[str, str]]
             }
         )
     updates.sort(key=lambda item: item["date"], reverse=True)
-    return updates[:limit]
+    return updates
 
 
 def render_updates_page(
@@ -131,7 +130,7 @@ def render_updates_page(
     lines = [
         "# Что нового",
         "",
-        "Последние обновления книги — чтобы не перечитывать всё заново.",
+        "Все обновления книги — новые сверху, чтобы не перечитывать всё заново. История ведётся с 31 октября 2026 года.",
         "",
     ]
     if not updates:
