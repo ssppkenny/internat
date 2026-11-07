@@ -11,3 +11,4 @@ build/
 /book.txt
 /book.synctex.gz
 /internat/settings.txt
+uv.lock
