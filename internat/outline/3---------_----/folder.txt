@@ -2,6 +2,6 @@ title:          Школьные годы
 ID:             43
 type:           folder
 compile:        2
-charCount:      130600
+charCount:      130443
 
 

@@ -12,3 +12,4 @@ build/
 /book.synctex.gz
 /internat/settings.txt
 uv.lock
+.cloudflare/
