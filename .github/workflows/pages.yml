@@ -21,16 +21,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Cache cargo and mdBook
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/bin/mdbook
@@ -79,7 +79,7 @@ jobs:
           pdflatex -interaction=nonstopmode -output-directory=build build/book.tex
           pdflatex -interaction=nonstopmode -output-directory=build build/book.tex
           cp build/book.pdf site/book/internat.pdf
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site/book
 
@@ -92,4 +92,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
