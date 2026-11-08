@@ -482,8 +482,10 @@ def test_empty_front_text_skipped(
 def test_book_toml_wires_comments_script() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     toml = (repo_root / "site" / "book.toml").read_text(encoding="utf-8")
-    assert 'additional-js = ["theme/custom.js"]' in toml
+    assert '"theme/custom.js"' in toml
+    assert '"theme/count.js"' in toml
     assert (repo_root / "site" / "theme" / "custom.js").is_file()
+    assert (repo_root / "site" / "theme" / "count.js").is_file()
 
 
 def test_updates_page_shows_full_history(outline: Path, tmp_path: Path) -> None:

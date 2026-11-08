@@ -7,5 +7,5 @@ src = "src"
 [output.html]
 site-url = "https://ssppkenny.github.io/internat/"
 additional-css = ["theme/custom.css"]
-additional-js = ["theme/custom.js"]
+additional-js = ["theme/custom.js", "theme/count.js"]
 mathjax-support = true
