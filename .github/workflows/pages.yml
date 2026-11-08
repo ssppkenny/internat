@@ -27,20 +27,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Cache mdBook
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo and mdBook
         uses: actions/cache@v4
         with:
-          path: mdbook
-          key: mdbook-${{ env.MDBOOK_VERSION }}-${{ runner.os }}-${{ runner.arch }}
-      - name: Install mdBook
+          path: |
+            ~/.cargo/bin/mdbook
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: mdbook-cargo-${{ env.MDBOOK_VERSION }}-${{ runner.os }}-${{ runner.arch }}
+      - name: Install mdBook from crates.io
         run: |
-          if [ ! -x mdbook ]; then
-            curl -fL --retry 8 --retry-delay 5 --retry-all-errors --connect-timeout 30 \
-              -o mdbook.tar.gz \
-              "https://github.com/rust-lang/mdBook/releases/download/${MDBOOK_VERSION}/mdbook-${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
-            tar -xzf mdbook.tar.gz
+          if [ ! -x "$HOME/.cargo/bin/mdbook" ]; then
+            cargo install mdbook --version "${MDBOOK_VERSION#v}" --locked
           fi
-          sudo install -m 0755 mdbook /usr/local/bin/mdbook
+          sudo install -m 0755 "$HOME/.cargo/bin/mdbook" /usr/local/bin/mdbook
           mdbook --version
       - name: Install TeX Live
         run: |
