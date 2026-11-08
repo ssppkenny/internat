@@ -47,6 +47,18 @@ def test_fixer_is_idempotent(tmp_path: Path) -> None:
     assert twice.count("\\setkeys{Gin}") == 1
 
 
+def test_combining_acute_becomes_latex_accent(tmp_path: Path) -> None:
+    tex = (
+        "\\documentclass{memoir}\n\\begin{document}\n"
+        "Птица\u0301, братья\u0301\n"
+        "\\end{document}\n"
+    )
+    fixed = run_fix(tex, tmp_path)
+    assert "Птиц\\'{а}" in fixed
+    assert "брать\\'{я}" in fixed
+    assert "\u0301" not in fixed
+
+
 def test_figures_get_here_placement_and_barriers(tmp_path: Path) -> None:
     tex = (
         "\\documentclass{memoir}\n\\usepackage{graphicx}\n"

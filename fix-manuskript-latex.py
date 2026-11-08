@@ -39,8 +39,24 @@ def fix(tex: str) -> str:
 
     tex = re.sub(r"\\setstretch\{([^}]*)\}", r"\\linespread{\1}\\selectfont", tex)
 
-    # T2A has no definitions for combining accents; drop them
-    tex = re.sub(r"[\u0300-\u036f]", "", tex)
+    # T2A has no definitions for combining accents; turn the ones we use
+    # into classic LaTeX accent commands so they survive the PDF export.
+    def _accent(match: re.Match[str]) -> str:
+        base, mark = match.group(1), match.group(2)
+        commands = {
+            "\u0300": "`",
+            "\u0301": "'",
+            "\u0302": "^",
+            "\u0303": "~",
+            "\u0308": '"',
+            "\u0306": "u",
+            "\u0307": ".",
+            "\u030c": "v",
+        }
+        command = commands.get(mark)
+        return f"\\{command}{{{base}}}" if command else base
+
+    tex = re.sub(r"(.)([\u0300-\u036f])", _accent, tex)
 
     gin_keys = (
         r"\setkeys{Gin}{width=\linewidth,height=0.8\textheight,keepaspectratio}"
