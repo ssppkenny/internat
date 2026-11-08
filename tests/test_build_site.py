@@ -425,7 +425,10 @@ def test_readme_has_update_date(outline: Path, tmp_path: Path) -> None:
 def test_readme_starts_with_frontispiece(outline: Path, tmp_path: Path) -> None:
     build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
     readme = (tmp_path / "src" / "README.md").read_text(encoding="utf-8")
-    assert readme.startswith("![Обложка](Photos/Omslag.jpg)\n\n# Интернат\n\n")
+    assert readme.startswith(
+        "![Обложка](Photos/Omslag.jpg)\n\n# Принцип Дирихле\n\n"
+        "**Записки из общего дома**\n\n"
+    )
 
 
 def test_book_raw_has_no_frontispiece(outline: Path, tmp_path: Path) -> None:
@@ -439,7 +442,7 @@ def test_front_text_before_parts(outline: Path, tmp_path: Path) -> None:
     write_chapter(outline / "0-Предисловие.md", "Предисловие", "Вступительное слово.")
     build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
     summary = (tmp_path / "src" / "SUMMARY.md").read_text(encoding="utf-8")
-    assert summary.index("[Интернат](README.md)") < summary.index(
+    assert summary.index("[Принцип Дирихле](README.md)") < summary.index(
         "- [Предисловие](predislovie.md)"
     )
     assert summary.index("- [Предисловие](predislovie.md)") < summary.index("# Часть 1")

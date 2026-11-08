@@ -334,7 +334,7 @@ def build(
     if photos_dir.is_dir():
         shutil.copytree(photos_dir, site_src / "Photos")
 
-    summary_lines = ["# Summary", "", "[Интернат](README.md)", ""]
+    summary_lines = ["# Summary", "", "[Принцип Дирихле](README.md)", ""]
     book_lines: list[str] = []
     raw_book_lines: list[str] = []
     chapter_count = 0
@@ -430,7 +430,8 @@ def build(
     (site_src / "SUMMARY.md").write_text("\n".join(summary_lines), encoding="utf-8")
     (site_src / "README.md").write_text(
         "![Обложка](Photos/Omslag.jpg)\n\n"
-        "# Интернат\n\n"
+        "# Принцип Дирихле\n\n"
+        "**Записки из общего дома**\n\n"
         "**Сергей Михно**\n\n"
         f"Версия {version}\n\n"
         f"Обновлено {format_date_ru(last_changed)}\n\n"

@@ -63,14 +63,14 @@ jobs:
         run: |
           pandoc build/book.md -o site/book/internat.epub --toc \
             --epub-cover-image=Photos/Omslag.jpg \
-            --metadata title="Интернат" \
+            --metadata title="Принцип Дирихле. Записки из общего дома" \
             --metadata author="Сергей Михно" \
             --metadata lang=ru
       - name: Build PDF
         run: |
           pandoc build/book-raw.md -s -t latex --toc --top-level-division=chapter \
             -V documentclass=memoir -V fontsize=14pt -V papersize=a4 \
-            --metadata title="Интернат" \
+            --metadata title="Принцип Дирихле. Записки из общего дома" \
             --metadata author="Сергей Михно" \
             -V date="Версия $(cat VERSION)" \
             --include-in-header=frontispiece.tex \
