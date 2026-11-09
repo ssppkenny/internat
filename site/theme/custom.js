@@ -1,6 +1,22 @@
 (function () {
   if (location.pathname.endsWith("print.html")) return;
 
+  function splitBookTitle() {
+    var title = document.querySelector(".menu-title");
+    if (!title || title.dataset.split) return;
+    var text = title.textContent.trim();
+    var index = text.indexOf(". ");
+    if (index === -1) return;
+    title.textContent = text.slice(0, index);
+    var lineBreak = document.createElement("br");
+    var subtitle = document.createElement("span");
+    subtitle.className = "book-subtitle";
+    subtitle.textContent = text.slice(index + 2);
+    title.appendChild(lineBreak);
+    title.appendChild(subtitle);
+    title.dataset.split = "1";
+  }
+
   function mount() {
     var main = document.querySelector("main");
     if (!main) return;
@@ -44,8 +60,12 @@
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", mount);
+    document.addEventListener("DOMContentLoaded", function () {
+      splitBookTitle();
+      mount();
+    });
   } else {
+    splitBookTitle();
     mount();
   }
 })();

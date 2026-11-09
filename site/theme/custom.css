@@ -2,6 +2,25 @@
     --content-max-width: 46em;
 }
 
+.menu-title .book-subtitle {
+    display: block;
+    font-size: 0.62em;
+    font-weight: normal;
+    font-style: italic;
+    line-height: 1.25;
+    letter-spacing: 0.02em;
+    opacity: 0.85;
+}
+
+.content main p.book-subtitle {
+    margin: -0.4em 0 1.5em;
+    font-size: 1.05em;
+    font-weight: normal;
+    font-style: italic;
+    letter-spacing: 0.02em;
+    opacity: 0.8;
+}
+
 .content main {
     font-family: "Literata", "PT Serif", "Noto Serif", Georgia, serif;
     font-size: 1.05em;

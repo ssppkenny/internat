@@ -446,7 +446,7 @@ def test_readme_starts_with_frontispiece(outline: Path, tmp_path: Path) -> None:
     readme = (tmp_path / "src" / "README.md").read_text(encoding="utf-8")
     assert readme.startswith(
         "![Обложка](Photos/Omslag.jpg)\n\n# Принцип Дирихле\n\n"
-        "**Записки из общего дома**\n\n"
+        "<p class=\"book-subtitle\">Записки из общего дома</p>\n\n"
     )
 
 

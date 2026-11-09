@@ -441,7 +441,7 @@ def build(
     (site_src / "README.md").write_text(
         "![Обложка](Photos/Omslag.jpg)\n\n"
         "# Принцип Дирихле\n\n"
-        "**Записки из общего дома**\n\n"
+        "<p class=\"book-subtitle\">Записки из общего дома</p>\n\n"
         "**Сергей Михно**\n\n"
         f"Версия {version}\n\n"
         f"Обновлено {format_date_ru(last_changed)}\n\n"
