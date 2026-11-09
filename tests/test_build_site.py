@@ -60,6 +60,25 @@ def test_summary_parts_and_chapters_in_order(outline: Path, tmp_path: Path) -> N
     assert "- [Учеба](part2/ucheba.md)" in summary
 
 
+def test_compile_zero_chapter_is_skipped(tmp_path: Path) -> None:
+    root = tmp_path / "outline"
+    write_part(root / "0-Часть 1", "Часть 1")
+    write_chapter(root / "0-Часть 1" / "0-Видимая.md", "Видимая", "Видимый текст.")
+    hidden = root / "0-Часть 1" / "1-Скрытая.md"
+    hidden.write_text(
+        "title:          Скрытая\nID:             2\ntype:           md\n"
+        "compile:        0\ncharCount:      13\n\n\nСкрытый текст.\n",
+        encoding="utf-8",
+    )
+    build(root, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    summary = (tmp_path / "src" / "SUMMARY.md").read_text(encoding="utf-8")
+    assert "Видимая" in summary
+    assert "Скрытая" not in summary
+    book = (tmp_path / "build" / "book.md").read_text(encoding="utf-8")
+    assert "Видимый текст." in book
+    assert "Скрытый текст." not in book
+
+
 def test_front_matter_stripped(outline: Path, tmp_path: Path) -> None:
     build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
     text = (tmp_path / "src" / "part1" / "postuplenie.md").read_text(encoding="utf-8")

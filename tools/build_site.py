@@ -56,6 +56,16 @@ def parse_title(path: Path) -> str:
     raise ValueError(f"{path}: no title: line")
 
 
+def is_compiled(path: Path) -> bool:
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("compile:"):
+            value = line.split(":", 1)[1].strip()
+            return value not in {"", "0"}
+        if line and not re.match(r"^[A-Za-z]+:", line):
+            break
+    return True
+
+
 def strip_front_matter(text: str) -> str:
     lines = text.splitlines()
     index = 0
@@ -291,7 +301,7 @@ def find_chapters(part_dir: Path) -> list[tuple[int, Path]]:
     chapters = []
     for child in part_dir.glob("*.md"):
         number = leading_int(child.name)
-        if number is not None:
+        if number is not None and is_compiled(child):
             chapters.append((number, child))
     return sorted(chapters)
 
