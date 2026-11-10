@@ -40,6 +40,16 @@ MATH_DPI = 600
 DISPLAY_MATH_RE = re.compile(r"\$\$(.+?)\$\$", re.S)
 INLINE_MATH_RE = re.compile(r"(?<!\$)\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\$)")
 
+SEARCH_VERSE_OPEN_RE = re.compile(r"^\\begin\{verse\}\s*$", re.M)
+SEARCH_VERSE_CLOSE_RE = re.compile(r"^\\end\{verse\}\s*$", re.M)
+SEARCH_VERSE_BREAK_RE = re.compile(r"\\\\\s*$", re.M)
+SEARCH_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\([^)]*\)")
+SEARCH_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]*\)")
+SEARCH_HTML_RE = re.compile(r"<[^>]+>")
+SEARCH_HEADING_RE = re.compile(r"^#{1,6}\s*", re.M)
+SEARCH_QUOTE_RE = re.compile(r"^>\s?", re.M)
+SEARCH_EMPHASIS_RE = re.compile(r"(\*\*|\*|__|_)")
+
 
 def leading_int(name: str) -> int | None:
     match = re.match(r"^(\d+)", name)
@@ -75,6 +85,22 @@ def strip_front_matter(text: str) -> str:
         while index < len(lines) and not lines[index].strip():
             index += 1
     return "\n".join(lines[index:]).strip()
+
+
+def plain_text(markdown: str) -> str:
+    """Strip Markdown and LaTeX markup so the search index contains readable text."""
+    text = SEARCH_VERSE_OPEN_RE.sub("", markdown)
+    text = SEARCH_VERSE_CLOSE_RE.sub("", text)
+    text = SEARCH_VERSE_BREAK_RE.sub(" ", text)
+    text = SEARCH_IMAGE_RE.sub(r"\1", text)
+    text = SEARCH_LINK_RE.sub(r"\1", text)
+    text = SEARCH_HTML_RE.sub(" ", text)
+    text = SEARCH_HEADING_RE.sub("", text)
+    text = SEARCH_QUOTE_RE.sub("", text)
+    text = SEARCH_EMPHASIS_RE.sub("", text)
+    text = text.replace("$", "")
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
 
 
 def slugify(title: str) -> str:
@@ -349,6 +375,7 @@ def build(
     raw_book_lines: list[str] = []
     chapter_count = 0
     chapter_links: dict[str, str] = {}
+    search_entries: list[dict[str, str]] = []
 
     used_front_slugs: set[str] = set()
     for _, front_path in find_front_texts(outline_dir):
@@ -375,6 +402,13 @@ def build(
         )
         summary_lines.append(f"- [{front_title}]({candidate}.md)")
         chapter_links[front_title] = f"{candidate}.md"
+        search_entries.append(
+            {
+                "title": front_title,
+                "url": f"{candidate}.html",
+                "text": plain_text(body),
+            }
+        )
         book_lines += [f"# {front_title}", "", epub_body, ""]
         raw_book_lines += [f"# {front_title} {{-}}", "", raw_body, ""]
         chapter_count += 1
@@ -425,6 +459,13 @@ def build(
             )
             summary_lines.append(f"- [{chapter_title}]({part_slug}/{candidate}.md)")
             chapter_links[chapter_title] = f"{part_slug}/{candidate}.md"
+            search_entries.append(
+                {
+                    "title": chapter_title,
+                    "url": f"{part_slug}/{candidate}.html",
+                    "text": plain_text(body),
+                }
+            )
             book_lines += [f"## {chapter_title}", "", epub_body, ""]
             raw_book_lines += [f"## {chapter_title}", "", raw_body, ""]
             chapter_count += 1
@@ -458,6 +499,13 @@ def build(
     )
     (build_dir / "book.md").write_text("\n".join(book_lines), encoding="utf-8")
     (build_dir / "book-raw.md").write_text("\n".join(raw_book_lines), encoding="utf-8")
+
+    search_json = json.dumps(search_entries, ensure_ascii=False, separators=(",", ":"))
+    search_json = search_json.replace("<", "\\u003c")
+    search_json = search_json.replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
+    (site_src / "search-data.js").write_text(
+        f"window.bookSearchData = {search_json};\n", encoding="utf-8"
+    )
 
     print(f"Wrote {chapter_count} chapters to {site_src}")
 

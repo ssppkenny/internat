@@ -501,6 +501,59 @@ def test_empty_front_text_skipped(
     assert "0-Пусто.md: empty chapter body, skipping" in captured.out
 
 
+def test_search_data_generated(outline: Path, tmp_path: Path) -> None:
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    data = (tmp_path / "src" / "search-data.js").read_text(encoding="utf-8")
+    assert data.startswith("window.bookSearchData = ")
+    assert "Поступление" in data
+    assert "Первый текст." in data
+    assert "part1/postuplenie.html" in data
+
+
+def test_search_data_skips_hidden_chapter(tmp_path: Path) -> None:
+    root = tmp_path / "outline"
+    write_part(root / "0-Часть 1", "Часть 1")
+    write_chapter(root / "0-Часть 1" / "0-Видимая.md", "Видимая", "Видимый текст.")
+    hidden = root / "0-Часть 1" / "1-Скрытая.md"
+    hidden.write_text(
+        "title:          Скрытая\nID:             2\ntype:           md\n"
+        "compile:        0\ncharCount:      13\n\n\nСкрытый текст.\n",
+        encoding="utf-8",
+    )
+    build(root, tmp_path / "src", tmp_path / "build", photos_dir=tmp_path / "Photos")
+    data = (tmp_path / "src" / "search-data.js").read_text(encoding="utf-8")
+    assert "Видимый текст." in data
+    assert "Скрытый текст." not in data
+
+
+def test_search_data_strips_markup(outline: Path, tmp_path: Path) -> None:
+    photos = tmp_path / "Photos"
+    photos.mkdir()
+    (photos / "pic.jpg").write_bytes(b"img")
+    write_chapter(
+        outline / "0-Часть 1" / "0-Поступление.md",
+        "Поступление",
+        "Текст с **жирным** и ![Снимок](Photos/pic.jpg).\n\n"
+        "\\begin{verse}\nСтрока.\\\\\n\\end{verse}",
+    )
+    build(outline, tmp_path / "src", tmp_path / "build", photos_dir=photos)
+    data = (tmp_path / "src" / "search-data.js").read_text(encoding="utf-8")
+    assert "Текст с жирным и Снимок." in data
+    assert "**жирным**" not in data
+    assert "![" not in data
+    assert "\\begin{verse}" not in data
+
+
+def test_custom_js_mounts_russian_search() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    js = (repo_root / "site" / "theme" / "custom.js").read_text(encoding="utf-8")
+    css = (repo_root / "site" / "theme" / "custom.css").read_text(encoding="utf-8")
+    assert "book-search-input" in js
+    assert "search-data.js" in js
+    assert ".book-search" in css
+    assert "#mdbook-search-toggle" in css
+
+
 def test_book_toml_wires_comments_script() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     toml = (repo_root / "site" / "book.toml").read_text(encoding="utf-8")
