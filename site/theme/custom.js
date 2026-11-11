@@ -240,15 +240,35 @@
     document.body.appendChild(script);
   }
 
+  // Track PDF/EPUB download clicks as GoatCounter events.
+  function mountDownloadTracking() {
+    var links = document.querySelectorAll("a[href$='.pdf'], a[href$='.epub']");
+    Array.prototype.slice.call(links).forEach(function (link) {
+      link.addEventListener("click", function () {
+        if (!window.goatcounter || !window.goatcounter.count) return;
+        var href = link.getAttribute("href") || "";
+        var name = href.split("/").pop().split("?")[0];
+        var kind = name.toLowerCase().indexOf(".epub") !== -1 ? "EPUB" : "PDF";
+        window.goatcounter.count({
+          event: true,
+          path: name,
+          title: "Скачать " + kind
+        });
+      });
+    });
+  }
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
       splitBookTitle();
       mountSearch();
       mount();
+      mountDownloadTracking();
     });
   } else {
     splitBookTitle();
     mountSearch();
     mount();
+    mountDownloadTracking();
   }
 })();
